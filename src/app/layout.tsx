@@ -51,7 +51,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className="dark h-full antialiased">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} ${notoDevanagari.variable} ${notoTamil.variable} ${notoTelugu.variable} flex min-h-full flex-col`}
+        className={`${geistSans.variable} ${geistMono.variable} ${notoDevanagari.variable} ${notoTamil.variable} ${notoTelugu.variable} flex min-h-full flex-col font-sans`}
       >
         {children}
         <Toaster position="top-center" />

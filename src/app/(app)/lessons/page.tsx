@@ -1,7 +1,7 @@
-import { PageHeader } from "@/components/page-header"
+import LessonsClient from "./lessons-client"
 
 export const instant = false
 
 export default function LessonsPage() {
-  return <PageHeader title="Lessons" description="Coming in the next step." />
+  return <LessonsClient />
 }

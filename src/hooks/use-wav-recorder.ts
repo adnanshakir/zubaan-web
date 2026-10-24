@@ -32,12 +32,21 @@ export function useWavRecorder({ onRecorded, onError }: UseWavRecorderOptions) {
   const streamRef = useRef<MediaStream | null>(null)
   const chunksRef = useRef<Blob[]>([])
   const timeoutRef = useRef<number | null>(null)
+  const pendingRequestRef = useRef<Promise<MediaStream> | null>(null)
+  const mountedRef = useRef(false)
   // Always call the latest callbacks without re-creating start/stop.
   const callbacksRef = useRef({ onRecorded, onError })
 
   useEffect(() => {
     callbacksRef.current = { onRecorded, onError }
   })
+
+  useEffect(() => {
+    mountedRef.current = true
+    return () => {
+      mountedRef.current = false
+    }
+  }, [])
 
   const releaseMic = useCallback(() => {
     if (timeoutRef.current !== null) {
@@ -54,11 +63,18 @@ export function useWavRecorder({ onRecorded, onError }: UseWavRecorderOptions) {
   }, [])
 
   const start = useCallback(async () => {
-    if (recorderRef.current) return
+    if (recorderRef.current || pendingRequestRef.current) return
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
+      const request = navigator.mediaDevices.getUserMedia({
         audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
       })
+      pendingRequestRef.current = request
+      const stream = await request
+      pendingRequestRef.current = null
+      if (!mountedRef.current) {
+        stream.getTracks().forEach((track) => track.stop())
+        return
+      }
       streamRef.current = stream
       const recorder = new MediaRecorder(stream)
       chunksRef.current = []
@@ -90,6 +106,8 @@ export function useWavRecorder({ onRecorded, onError }: UseWavRecorderOptions) {
       setStatus("recording")
       timeoutRef.current = window.setTimeout(stop, MAX_RECORD_SECONDS * 1000)
     } catch (error) {
+      pendingRequestRef.current = null
+      if (!mountedRef.current) return
       recorderRef.current = null
       releaseMic()
       setStatus("idle")

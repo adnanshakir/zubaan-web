@@ -1,7 +1,7 @@
-import { PageHeader } from "@/components/page-header"
+import VoiceLabClient from "./voice-lab-client"
 
 export const instant = false
 
 export default function VoiceLabPage() {
-  return <PageHeader title="Voice lab" description="Coming in the next step." />
+  return <VoiceLabClient />
 }

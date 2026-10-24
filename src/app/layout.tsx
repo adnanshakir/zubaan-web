@@ -21,19 +21,19 @@ const geistMono = Geist_Mono({
 
 const notoDevanagari = Noto_Sans_Devanagari({
   variable: "--font-noto-devanagari",
-  subsets: ["devanagari", "latin"],
+  subsets: ["devanagari"],
   display: "swap",
 })
 
 const notoTamil = Noto_Sans_Tamil({
   variable: "--font-noto-tamil",
-  subsets: ["tamil", "latin"],
+  subsets: ["tamil"],
   display: "swap",
 })
 
 const notoTelugu = Noto_Sans_Telugu({
   variable: "--font-noto-telugu",
-  subsets: ["telugu", "latin"],
+  subsets: ["telugu"],
   display: "swap",
 })
 

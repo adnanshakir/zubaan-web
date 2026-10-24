@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
+import { ApiError, clearUserId } from "@/lib/api/client"
 
 interface ApiState<T> {
   data: T | null
@@ -20,6 +21,7 @@ export function useApi<T>(load: () => Promise<T>) {
         if (!cancelled) setState({ data, error: null, loading: false })
       },
       (error: unknown) => {
+        if (error instanceof ApiError && error.status === 401) clearUserId()
         if (!cancelled) setState({ data: null, error, loading: false })
       },
     )

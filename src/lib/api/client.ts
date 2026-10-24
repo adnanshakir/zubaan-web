@@ -10,6 +10,7 @@ import type {
   ConversationStartResponse,
   ConversationTurnResponse,
   HomeResponse,
+  Language,
   LessonCategory,
   LessonDetail,
   LessonListItem,
@@ -27,6 +28,12 @@ import type {
 
 export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000"
 const USER_ID_KEY = "zubaan:userId"
+const NATIVE_LANGUAGE_KEY = "zubaan:nativeLanguage"
+export const SESSION_EVENT = "zubaan:session"
+
+function notifySessionChange(): void {
+  window.dispatchEvent(new Event(SESSION_EVENT))
+}
 
 // ---- Session: the backend identifies users by the x-user-id header ----
 
@@ -37,10 +44,18 @@ export function getUserId(): string | null {
 
 export function setUserId(id: string): void {
   window.localStorage.setItem(USER_ID_KEY, id)
+  notifySessionChange()
 }
 
 export function clearUserId(): void {
   window.localStorage.removeItem(USER_ID_KEY)
+  window.localStorage.removeItem(NATIVE_LANGUAGE_KEY)
+  notifySessionChange()
+}
+
+export function getNativeLanguage(): Language | null {
+  if (typeof window === "undefined") return null
+  return window.localStorage.getItem(NATIVE_LANGUAGE_KEY) as Language | null
 }
 
 // ---- Errors ----
@@ -121,6 +136,7 @@ export const api = {
   /** Creates the user and stores the returned userId for later calls. */
   onboard: async (body: OnboardingRequest): Promise<OnboardingResponse> => {
     const result = await request<OnboardingResponse>("/api/onboarding", post(body), false)
+    window.localStorage.setItem(NATIVE_LANGUAGE_KEY, result.user.nativeLanguage)
     setUserId(result.userId)
     return result
   },

@@ -1,5 +1,16 @@
 import type { Goal, Language, Level } from "@/lib/api/types"
 import type { Option } from "@/components/option-list"
+import {
+  BriefcaseIcon,
+  HandshakeIcon,
+  MessagesSquareIcon,
+  MicIcon,
+  PlaneIcon,
+  SignalHighIcon,
+  SignalIcon,
+  SignalLowIcon,
+  SignalMediumIcon,
+} from "lucide-react"
 
 export const LANGUAGES: readonly Option<Language>[] = [
   { value: "hi", label: "Hindi", hint: "हिन्दी" },
@@ -19,16 +30,42 @@ export const GOALS: readonly Option<Goal>[] = [
     value: "daily_conversation",
     label: "Everyday conversation",
     hint: "Chat with neighbours, friends and shopkeepers",
+    icon: MessagesSquareIcon,
   },
-  { value: "work", label: "Work", hint: "Meetings, updates and calls" },
-  { value: "interviews", label: "Interviews", hint: "Answer questions with confidence" },
-  { value: "travel", label: "Travel", hint: "Get around and ask for help" },
-  { value: "confidence", label: "Speaking confidence", hint: "Feel at ease speaking out loud" },
+  { value: "work", label: "Work", hint: "Meetings, updates and calls", icon: BriefcaseIcon },
+  {
+    value: "interviews",
+    label: "Interviews",
+    hint: "Answer questions with confidence",
+    icon: HandshakeIcon,
+  },
+  { value: "travel", label: "Travel", hint: "Get around and ask for help", icon: PlaneIcon },
+  {
+    value: "confidence",
+    label: "Speaking confidence",
+    hint: "Feel at ease speaking out loud",
+    icon: MicIcon,
+  },
 ]
 
 export const LEVELS: readonly Option<Level>[] = [
-  { value: "beginner", label: "Beginner", hint: "I know a few words" },
-  { value: "elementary", label: "Elementary", hint: "I can say simple sentences" },
-  { value: "intermediate", label: "Intermediate", hint: "I can talk, but I make mistakes" },
-  { value: "advanced", label: "Advanced", hint: "I speak well and want to polish" },
+  { value: "beginner", label: "Beginner", hint: "I know a few words", icon: SignalLowIcon },
+  {
+    value: "elementary",
+    label: "Elementary",
+    hint: "I can say simple sentences",
+    icon: SignalMediumIcon,
+  },
+  {
+    value: "intermediate",
+    label: "Intermediate",
+    hint: "I can talk, but I make mistakes",
+    icon: SignalHighIcon,
+  },
+  {
+    value: "advanced",
+    label: "Advanced",
+    hint: "I speak well and want to polish",
+    icon: SignalIcon,
+  },
 ]

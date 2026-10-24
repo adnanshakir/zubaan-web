@@ -1,9 +1,12 @@
 "use client"
 
 import Link from "next/link"
-import { useCallback } from "react"
+import { useCallback, useState } from "react"
 import { ChevronLeftIcon } from "lucide-react"
-import { getNativeLanguage, api } from "@/lib/api/client"
+import { TextMorph } from "torph/react"
+import { toast } from "sonner"
+import { useRouter } from "next/navigation"
+import { describeError, getNativeLanguage, api } from "@/lib/api/client"
 import { useApi } from "@/hooks/use-api"
 import { usePhrasePlayer } from "@/hooks/use-phrase-player"
 import { PhraseRow } from "@/components/phrase-row"
@@ -113,7 +116,7 @@ function LessonContent({
                   </p>
                 </StepCard>
               ) : (
-                <RoleplayCard roleplay={step.roleplay} />
+                <RoleplayCard lessonId={lesson.id} roleplay={step.roleplay} />
               )}
             </Card>
           ))}
@@ -132,11 +135,26 @@ function StepCard({ title, children }: { title: string; children: React.ReactNod
 }
 
 function RoleplayCard({
+  lessonId,
   roleplay,
 }: {
+  lessonId: string
   roleplay: Awaited<ReturnType<typeof api.lesson>>["steps"][number]["roleplay"]
 }) {
+  const router = useRouter()
+  const [starting, setStarting] = useState(false)
   if (!roleplay) return null
+
+  async function startConversation() {
+    setStarting(true)
+    try {
+      const result = await api.startConversation(lessonId)
+      router.push(`/conversation/${result.conversationId}`)
+    } catch (error) {
+      toast.error(describeError(error))
+      setStarting(false)
+    }
+  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -169,12 +187,14 @@ function RoleplayCard({
           </div>
         </div>
       ) : null}
-      <Button disabled className="w-full">
-        Start conversation
+      <Button
+        loading={starting}
+        disabled={starting}
+        className="w-full"
+        onClick={() => void startConversation()}
+      >
+        <TextMorph>{starting ? "Preparing" : "Start conversation"}</TextMorph>
       </Button>
-      <span className="text-xs text-muted-foreground">
-        Voice conversations arrive in the next step.
-      </span>
     </div>
   )
 }

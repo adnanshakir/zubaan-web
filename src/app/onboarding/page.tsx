@@ -126,7 +126,12 @@ export default function OnboardingPage() {
             <ChevronLeftIcon />
             Back
           </Button>
-          <Button type="submit" loading={submitting} disabled={!canContinue || submitting}>
+          <Button
+            type="submit"
+            variant="indigo"
+            loading={submitting}
+            disabled={!canContinue || submitting}
+          >
             <TextMorph>{isLast ? "Start learning" : "Continue"}</TextMorph>
           </Button>
         </div>

@@ -1,9 +1,9 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { toast } from "sonner"
 import { TextMorph } from "torph/react"
 import { api, describeError } from "@/lib/api/client"
+import { notifyError } from "@/lib/notify"
 import type { SttResponse } from "@/lib/api/types"
 import { useWavRecorder } from "@/hooks/use-wav-recorder"
 import { MicButton } from "@/components/mic-button"
@@ -24,7 +24,7 @@ export default function SttPanel() {
     try {
       setResult(await api.stt(wav, { language }))
     } catch (error) {
-      toast.error(describeError(error))
+      notifyError(describeError(error))
     } finally {
       setBusy(false)
     }
@@ -34,7 +34,7 @@ export default function SttPanel() {
     onRecorded: (wav) => {
       void transcribe(wav)
     },
-    onError: (message) => toast.error(message),
+    onError: (message) => notifyError(message),
   })
 
   useEffect(() => {

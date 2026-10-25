@@ -1,9 +1,9 @@
 "use client"
 
 import { useCallback, useState } from "react"
-import { toast } from "sonner"
 import { PlayIcon, SquareIcon } from "lucide-react"
 import { api, describeError } from "@/lib/api/client"
+import { notifyError } from "@/lib/notify"
 import type { MistakeType, MistakesListResponse } from "@/lib/api/types"
 import { useApi } from "@/hooks/use-api"
 import { usePhrasePlayer } from "@/hooks/use-phrase-player"
@@ -45,7 +45,7 @@ export default function MistakeList({ type }: MistakeListProps) {
       setExtra((previous) => [...previous, ...page.items])
       setCursor(page.nextBefore)
     } catch (error) {
-      toast.error(describeError(error))
+      notifyError(describeError(error))
     } finally {
       setLoadingMore(false)
     }

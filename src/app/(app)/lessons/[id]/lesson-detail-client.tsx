@@ -4,9 +4,9 @@ import Link from "next/link"
 import { useCallback, useState } from "react"
 import { ChevronLeftIcon } from "lucide-react"
 import { TextMorph } from "torph/react"
-import { toast } from "sonner"
 import { useRouter } from "next/navigation"
 import { describeError, getNativeLanguage, api } from "@/lib/api/client"
+import { notifyError } from "@/lib/notify"
 import { useApi } from "@/hooks/use-api"
 import { usePhrasePlayer } from "@/hooks/use-phrase-player"
 import { PhraseRow } from "@/components/phrase-row"
@@ -151,7 +151,7 @@ function RoleplayCard({
       const result = await api.startConversation(lessonId)
       router.push(`/conversation/${result.conversationId}`)
     } catch (error) {
-      toast.error(describeError(error))
+      notifyError(describeError(error))
       setStarting(false)
     }
   }
@@ -188,6 +188,7 @@ function RoleplayCard({
         </div>
       ) : null}
       <Button
+        variant="indigo"
         loading={starting}
         disabled={starting}
         className="w-full"

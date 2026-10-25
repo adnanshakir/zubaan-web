@@ -3,6 +3,7 @@
 import type { LucideIcon } from "lucide-react"
 import { CheckIcon } from "lucide-react"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { haptic } from "@/lib/haptics"
 import { cn } from "@/lib/utils"
 
 export interface Option<T extends string> {
@@ -33,7 +34,10 @@ export function OptionList<T extends string>({
       value={value ?? ""}
       onValueChange={(next) => {
         const match = options.find((option) => option.value === next)
-        if (match) onChange(match.value)
+        if (match) {
+          haptic.select()
+          onChange(match.value)
+        }
       }}
       className={cn("grid gap-2", columns === 2 && "grid-cols-2")}
     >

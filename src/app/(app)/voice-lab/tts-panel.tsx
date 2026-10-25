@@ -1,10 +1,10 @@
 "use client"
 
 import { useRef, useState } from "react"
-import { toast } from "sonner"
 import { PlayIcon, SquareIcon } from "lucide-react"
 import { TextMorph } from "torph/react"
 import { api, audioSrc, describeError } from "@/lib/api/client"
+import { notifyError } from "@/lib/notify"
 import type { TtsLanguage, TtsProviderName } from "@/lib/api/types"
 import { useAudioPlayer } from "@/hooks/use-audio-player"
 import { PillSelect } from "@/components/pill-select"
@@ -63,7 +63,7 @@ export default function TtsPanel() {
       const src = audioSrc(result.audioUrl)
       if (src) void player.play(entry.id, src)
     } catch (error) {
-      toast.error(describeError(error))
+      notifyError(describeError(error))
     } finally {
       setGenerating(false)
     }
@@ -128,6 +128,7 @@ export default function TtsPanel() {
           : "Kokoro is free but the first request after a pause can take about 10 seconds."}
       </p>
       <Button
+        variant="indigo"
         className="w-full"
         loading={generating}
         disabled={!text.trim() || generating}

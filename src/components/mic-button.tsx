@@ -3,6 +3,7 @@
 import { MicIcon, SquareIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import type { RecorderStatus } from "@/hooks/use-wav-recorder"
+import { haptic } from "@/lib/haptics"
 
 interface MicButtonProps {
   status: RecorderStatus
@@ -19,12 +20,18 @@ export function MicButton({ status, disabled = false, onStart, onStop }: MicButt
         <span aria-hidden className="animate-pulse-ring absolute inset-0 rounded-full bg-primary" />
       ) : null}
       <Button
+        variant="indigo"
         size="icon"
         className="size-16"
         aria-label={recording ? "Stop recording" : "Start recording"}
         loading={status === "encoding"}
         disabled={disabled || status === "encoding"}
-        onClick={recording ? onStop : onStart}
+        haptic={false}
+        onClick={() => {
+          haptic.nudge()
+          if (recording) onStop()
+          else onStart()
+        }}
       >
         {recording ? (
           <SquareIcon className="size-5" />

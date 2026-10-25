@@ -43,7 +43,7 @@ export default function ConversationClient({ id }: { id: string }) {
     return (
       <div className="mx-auto flex max-w-md flex-col items-start gap-4 px-5 py-8">
         <p className="text-sm text-muted-foreground">This lesson has no conversation.</p>
-        <Button asChild>
+        <Button asChild variant="indigo">
           <Link href="/lessons">Back to lessons</Link>
         </Button>
       </div>

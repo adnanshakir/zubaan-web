@@ -3,6 +3,7 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { AudioLinesIcon, BookOpenIcon, HouseIcon, SpellCheckIcon } from "lucide-react"
+import { haptic } from "@/lib/haptics"
 import { cn } from "@/lib/utils"
 
 const ITEMS = [
@@ -34,6 +35,7 @@ export function NavIsland() {
           <Link
             key={item.href}
             href={item.href}
+            onClick={() => haptic.tap()}
             aria-current={index === activeIndex ? "page" : undefined}
             className={cn(
               "relative z-10 flex flex-col items-center gap-0.5 rounded-full py-2 text-[11px] font-medium transition-colors duration-150 outline-none focus-visible:ring-3 focus-visible:ring-ring/50",

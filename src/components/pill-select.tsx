@@ -31,7 +31,7 @@ export function PillSelect<T extends string>({
           <Button
             key={option.value}
             size="sm"
-            variant={selected ? "default" : "outline"}
+            variant={selected ? "indigo" : "outline"}
             aria-pressed={selected}
             disabled={option.disabled}
             onClick={() => onChange(option.value)}

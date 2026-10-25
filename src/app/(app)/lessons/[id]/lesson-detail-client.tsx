@@ -10,6 +10,7 @@ import { notifyError } from "@/lib/notify"
 import { useApi } from "@/hooks/use-api"
 import { usePhrasePlayer } from "@/hooks/use-phrase-player"
 import { PhraseRow } from "@/components/phrase-row"
+import { PhrasePractice } from "@/components/phrase-practice"
 import { ErrorCard } from "@/components/error-card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -100,20 +101,12 @@ function LessonContent({
                 </StepCard>
               ) : step.type === "repeat" ? (
                 <StepCard title="Say them out loud">
-                  {(step.phraseIndexes ?? []).map((index) => {
-                    const phrase = allPhrases[index]
-                    return phrase ? (
-                      <PhraseRow
-                        key={`repeat-${index}`}
-                        id={`repeat-${index}`}
-                        text={phrase.text}
-                        player={player}
-                      />
-                    ) : null
-                  })}
-                  <p className="text-xs text-muted-foreground">
-                    Recording and feedback arrive in the next step.
-                  </p>
+                  <PhrasePractice
+                    phrases={(step.phraseIndexes ?? []).flatMap((index) => {
+                      const phrase = allPhrases[index]
+                      return phrase ? [{ id: `repeat-${index}`, text: phrase.text }] : []
+                    })}
+                  />
                 </StepCard>
               ) : (
                 <RoleplayCard lessonId={lesson.id} roleplay={step.roleplay} />

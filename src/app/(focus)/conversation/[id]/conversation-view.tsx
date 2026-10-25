@@ -17,13 +17,12 @@ import { notifyError } from "@/lib/notify"
 import type {
   ConversationGetResponse,
   ConversationMessage,
-  ConversationFeedback,
   LessonDetail,
   RoleplayStep,
 } from "@/lib/api/types"
 import { useAudioPlayer } from "@/hooks/use-audio-player"
 import { useWavRecorder } from "@/hooks/use-wav-recorder"
-import FeedbackSummary from "@/components/feedback-summary"
+import { TargetPhrases } from "@/components/target-phrases"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 
@@ -72,13 +71,11 @@ export default function ConversationView({
   })
   const [phase, setPhase] = useState<Phase>("idle")
   const [ended, setEnded] = useState(conversation.status !== "active")
-  const [feedback, setFeedback] = useState<ConversationFeedback | null>(conversation.feedback)
   const [typing, setTyping] = useState(false)
   const [draft, setDraft] = useState("")
   const [ending, setEnding] = useState(false)
   const keyCounter = useRef(conversation.messages.length)
   const bottomRef = useRef<HTMLDivElement>(null)
-  const summaryRef = useRef<HTMLDivElement>(null)
   const player = useAudioPlayer()
   const { play } = player
 
@@ -129,7 +126,6 @@ export default function ConversationView({
       else haptic.success()
       if (turn.endConversation || turn.turnsRemaining === 0) {
         setEnded(true)
-        setFeedback(turn.feedback)
         haptic.success()
       }
     } catch (error) {
@@ -159,11 +155,9 @@ export default function ConversationView({
 
   async function endNow() {
     setEnding(true)
-    player.stop()
     try {
-      const result = await api.endConversation(conversation.conversationId)
+      await api.endConversation(conversation.conversationId)
       setEnded(true)
-      setFeedback(result.feedback)
       haptic.success()
     } catch (error) {
       notifyError(describeError(error))
@@ -182,11 +176,7 @@ export default function ConversationView({
   const turnsLeft = Math.max(0, roleplay.maxTurns - userCount)
 
   useEffect(() => {
-    if (ended && summaryRef.current) {
-      summaryRef.current.scrollIntoView({ behavior: "smooth", block: "start" })
-    } else {
-      bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" })
-    }
+    bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" })
   }, [ended, messages.length])
 
   useEffect(() => {
@@ -232,28 +222,31 @@ export default function ConversationView({
         )}
       </header>
       <p className="shrink-0 px-5 pb-3 text-xs text-muted-foreground">Goal: {roleplay.goal}</p>
+      <TargetPhrases
+        phrases={roleplay.targetPhrases}
+        spoken={messages
+          .filter((message) => message.role === "user" && !message.pending)
+          .map((message) => message.text)}
+        ended={ended}
+      />
       <div className="flex-1 overflow-y-auto px-5 py-4">
         <div className="flex flex-col gap-3">
           {messages.map((message) => (
             <MessageBubble key={message.key} message={message} player={player} />
           ))}
-          {ended ? (
-            <div ref={summaryRef}>
-              {feedback ? (
-                <FeedbackSummary feedback={feedback} />
-              ) : (
-                <p className="text-sm text-muted-foreground">Conversation complete.</p>
-              )}
-            </div>
-          ) : null}
           <div ref={bottomRef} />
         </div>
       </div>
       <div className="flex shrink-0 flex-col items-center gap-3 border-t border-border/60 bg-background px-5 pt-4 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
         {ended ? (
-          <Button asChild variant="indigo" className="w-full">
-            <Link href="/lessons">Back to lessons</Link>
-          </Button>
+          <>
+            <Button asChild variant="indigo" className="w-full">
+              <Link href={`/conversation/${conversation.conversationId}/summary`}>See summary</Link>
+            </Button>
+            <Button asChild variant="ghost" size="sm">
+              <Link href="/lessons">Back to lessons</Link>
+            </Button>
+          </>
         ) : typing ? (
           <>
             <form className="flex w-full gap-2" onSubmit={submitText}>

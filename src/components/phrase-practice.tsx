@@ -18,6 +18,7 @@ import { VerdictBadge } from "@/components/verdict-badge"
 interface PhrasePracticeProps {
   phrases: ReadonlyArray<{ id: string; text: string }>
   player: ReturnType<typeof usePhrasePlayer>
+  onVerdict?: (id: string, verdict: MatchResult["verdict"]) => void
 }
 
 interface PracticeResult {
@@ -25,7 +26,7 @@ interface PracticeResult {
   heard: string
 }
 
-export function PhrasePractice({ phrases, player }: PhrasePracticeProps) {
+export function PhrasePractice({ phrases, player, onVerdict }: PhrasePracticeProps) {
   const targetRef = useRef<string | null>(null)
   const [recordingId, setRecordingId] = useState<string | null>(null)
   const [busyId, setBusyId] = useState<string | null>(null)
@@ -47,6 +48,7 @@ export function PhrasePractice({ phrases, player }: PhrasePracticeProps) {
         ...previous,
         [id]: { match, heard: result.text.trim() },
       }))
+      onVerdict?.(id, match.verdict)
       if (match.verdict === "said") haptic.success()
       else if (match.verdict === "close") haptic.nudge()
       else haptic.error()

@@ -23,7 +23,7 @@ export function usePhrasePlayer() {
   useEffect(() => stop, [stop])
 
   const play = useCallback(
-    async (id: string, text: string) => {
+    async (id: string, text: string, rate = 1) => {
       stop()
       const token = requestRef.current
       setActive({ id, status: "loading" })
@@ -31,6 +31,7 @@ export function usePhrasePlayer() {
         const result = await api.tts({ text, language: "en-IN", provider: TTS_PROVIDER })
         if (token !== requestRef.current) return
         const audio = new Audio(audioSrc(result.audioUrl) ?? undefined)
+        audio.playbackRate = rate
         audio.onended = () => {
           if (audioRef.current === audio) {
             audioRef.current = null

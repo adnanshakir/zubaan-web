@@ -11,6 +11,7 @@ import { useApi } from "@/hooks/use-api"
 import { usePhrasePlayer } from "@/hooks/use-phrase-player"
 import { PhraseRow } from "@/components/phrase-row"
 import { PhrasePractice } from "@/components/phrase-practice"
+import { PhraseWalkthrough } from "@/components/phrase-walkthrough"
 import { ErrorCard } from "@/components/error-card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -64,6 +65,7 @@ function LessonContent({
   player: ReturnType<typeof usePhrasePlayer>
 }) {
   const nativeLanguage = getNativeLanguage()
+  const [learnDone, setLearnDone] = useState(false)
   const allPhrases = lesson.steps
     .filter((step) => step.type === "learn")
     .flatMap((step) => step.phrases ?? [])
@@ -80,40 +82,68 @@ function LessonContent({
         </div>
       </header>
       <div className="mt-6 flex animate-in flex-col gap-3 duration-200 fade-in-0 slide-in-from-bottom-1">
-        {[...lesson.steps]
-          .sort((left, right) => left.order - right.order)
-          .map((step) => (
-            <Card key={step.order} className="rounded-2xl px-5 py-5 shadow-none">
-              <span className="text-xs text-muted-foreground">Step {step.order}</span>
-              {step.type === "learn" ? (
-                <StepCard title="Learn the phrases">
-                  {(step.phrases ?? []).map((phrase, index) => (
-                    <PhraseRow
-                      key={`learn-${index}`}
-                      id={`learn-${index}`}
-                      text={phrase.text}
-                      hint={nativeLanguage ? phrase.hints[nativeLanguage] : undefined}
-                      hintLang={nativeLanguage ?? undefined}
-                      tip={phrase.tip}
-                      player={player}
-                    />
-                  ))}
-                </StepCard>
-              ) : step.type === "repeat" ? (
-                <StepCard title="Say them out loud">
-                  <PhrasePractice
-                    phrases={(step.phraseIndexes ?? []).flatMap((index) => {
-                      const phrase = allPhrases[index]
-                      return phrase ? [{ id: `repeat-${index}`, text: phrase.text }] : []
-                    })}
-                    player={player}
-                  />
-                </StepCard>
-              ) : (
-                <RoleplayCard lessonId={lesson.id} roleplay={step.roleplay} />
+        {lesson.steps.some((step) => step.type === "repeat")
+          ? [...lesson.steps]
+              .sort((left, right) => left.order - right.order)
+              .map((step) => (
+                <Card key={step.order} className="rounded-2xl px-5 py-5 shadow-none">
+                  <span className="text-xs text-muted-foreground">Step {step.order}</span>
+                  {step.type === "learn" ? (
+                    <StepCard title="Learn the phrases">
+                      {(step.phrases ?? []).map((phrase, index) => (
+                        <PhraseRow
+                          key={`learn-${index}`}
+                          id={`learn-${index}`}
+                          text={phrase.text}
+                          hint={nativeLanguage ? phrase.hints[nativeLanguage] : undefined}
+                          hintLang={nativeLanguage ?? undefined}
+                          tip={phrase.tip}
+                          player={player}
+                        />
+                      ))}
+                    </StepCard>
+                  ) : step.type === "repeat" ? (
+                    <StepCard title="Say them out loud">
+                      <PhrasePractice
+                        phrases={(step.phraseIndexes ?? []).flatMap((index) => {
+                          const phrase = allPhrases[index]
+                          return phrase ? [{ id: `repeat-${index}`, text: phrase.text }] : []
+                        })}
+                        player={player}
+                      />
+                    </StepCard>
+                  ) : (
+                    <RoleplayCard lessonId={lesson.id} roleplay={step.roleplay} />
+                  )}
+                </Card>
+              ))
+          : [...lesson.steps]
+              .sort((left, right) => left.order - right.order)
+              .filter((step) => (step.type === "learn" ? !learnDone : learnDone))
+              .map((step) =>
+                step.type === "learn" ? (
+                  <div key={step.order} className="flex flex-col gap-4">
+                    <span className="text-xs text-muted-foreground">Step {step.order}</span>
+                    <StepCard title="Learn the phrases">
+                      <PhraseWalkthrough
+                        phrases={(step.phrases ?? []).map((phrase, index) => ({
+                          id: `learn-${index}`,
+                          text: phrase.text,
+                          hi: phrase.hints.hi,
+                          tip: phrase.tip ?? undefined,
+                          chunks: phrase.chunks,
+                        }))}
+                        onDone={() => setLearnDone(true)}
+                      />
+                    </StepCard>
+                  </div>
+                ) : (
+                  <Card key={step.order} className="rounded-2xl px-5 py-5 shadow-none">
+                    <span className="text-xs text-muted-foreground">Step {step.order}</span>
+                    <RoleplayCard lessonId={lesson.id} roleplay={step.roleplay} />
+                  </Card>
+                ),
               )}
-            </Card>
-          ))}
       </div>
     </>
   )

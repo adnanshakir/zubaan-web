@@ -2,7 +2,11 @@
 
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import { Volume2Icon, VolumeXIcon } from "lucide-react"
+import { useSyncExternalStore } from "react"
+import { TextMorph } from "torph/react"
 import { api, clearUserId } from "@/lib/api/client"
+import { haptic, isSoundEnabled, setSoundEnabled, subscribeSound } from "@/lib/haptics"
 import { useApi } from "@/hooks/use-api"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -13,6 +17,7 @@ import { ErrorCard } from "@/components/error-card"
 export default function HomeClient() {
   const { data, error, loading, reload } = useApi(api.home)
   const router = useRouter()
+  const soundOn = useSyncExternalStore(subscribeSound, isSoundEnabled, () => false)
   return (
     <>
       <header>
@@ -76,6 +81,18 @@ export default function HomeClient() {
         </div>
       </section>
 
+      <Button
+        variant="ghost"
+        size="sm"
+        aria-pressed={soundOn}
+        onClick={() => {
+          setSoundEnabled(!soundOn)
+          if (!soundOn) haptic.select()
+        }}
+      >
+        {soundOn ? <Volume2Icon /> : <VolumeXIcon />}
+        <TextMorph>{soundOn ? "Sounds on" : "Sounds off"}</TextMorph>
+      </Button>
       <Button
         variant="ghost"
         size="sm"

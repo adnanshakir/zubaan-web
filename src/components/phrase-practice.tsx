@@ -7,6 +7,7 @@ import type { MatchResult } from "@/lib/speech-match"
 import { matchSpeech } from "@/lib/speech-match"
 import { haptic } from "@/lib/haptics"
 import { notifyError } from "@/lib/notify"
+import { isNonLatin } from "@/lib/text"
 import { usePhrasePlayer } from "@/hooks/use-phrase-player"
 import { useWavRecorder } from "@/hooks/use-wav-recorder"
 import { Button } from "@/components/ui/button"
@@ -37,6 +38,10 @@ export function PhrasePractice({ phrases }: PhrasePracticeProps) {
     setBusyId(id)
     try {
       const result = await api.stt(wav, { language: "en-IN" })
+      if (isNonLatin(result.text)) {
+        notifyError("We couldn't read that as English. Try again, a little slower.")
+        return
+      }
       const match = matchSpeech(phrase.text, result.text)
       setResults((previous) => ({
         ...previous,

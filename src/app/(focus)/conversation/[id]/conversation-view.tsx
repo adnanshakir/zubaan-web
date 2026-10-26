@@ -14,6 +14,7 @@ import { TextMorph } from "torph/react"
 import { api, audioSrc, describeError } from "@/lib/api/client"
 import { haptic } from "@/lib/haptics"
 import { notifyError } from "@/lib/notify"
+import { isNonLatin } from "@/lib/text"
 import type {
   ConversationGetResponse,
   ConversationMessage,
@@ -143,6 +144,11 @@ export default function ConversationView({
       const text = result.text.trim().slice(0, 500)
       if (!text) {
         notifyError("We didn't catch that. Try again.")
+        setPhase("idle")
+        return
+      }
+      if (isNonLatin(text)) {
+        notifyError("We couldn't read that as English. Try again, a little slower.")
         setPhase("idle")
         return
       }

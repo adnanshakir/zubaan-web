@@ -99,6 +99,8 @@ A floating island pill, fixed bottom center:
   right; nudge = recording start/stop, a correction shown, a phrase "almost";
   error = failures (always through `notifyError`) and a missed phrase. Import
   from `@/lib/haptics` and `@/lib/notify`.
+- Sounds are on by default only on devices that cannot vibrate (desktop, iOS);
+  the toggle is on Home.
 - **Loading:** `Skeleton` blocks that match the final layout. Spinners only
   inside buttons (the `loading` prop).
 - **Icons:** lucide-react, `size-4` in buttons, `size-5` in the nav.

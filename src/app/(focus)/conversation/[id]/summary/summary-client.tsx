@@ -7,6 +7,7 @@ import { CheckIcon, CircleDotIcon, PencilLineIcon, XIcon } from "lucide-react"
 import { api, describeError } from "@/lib/api/client"
 import { bestAttempt, phraseStatus, type PhraseStatus } from "@/lib/phrase-status"
 import { sessionScore, scoreLabel } from "@/lib/summary-score"
+import { matchSpeech, type MatchResult } from "@/lib/speech-match"
 import { haptic } from "@/lib/haptics"
 import { notifyError } from "@/lib/notify"
 import { useApi } from "@/hooks/use-api"
@@ -29,6 +30,48 @@ const CORRECTION_LABELS = {
   other: "Other",
 } as const
 
+type PhraseAttempt = { match: MatchResult; text: string } | null
+
+function derivePhraseResults(
+  roleplay: NonNullable<Awaited<ReturnType<typeof api.lesson>>["steps"][number]["roleplay"]>,
+  userTurns: Awaited<ReturnType<typeof api.conversation>>["messages"],
+) {
+  if (roleplay.turns?.length) {
+    const results = roleplay.turns.map((turn, turnIndex) => {
+      const attempts = userTurns.filter((message) => message.turnIndex === turnIndex)
+      const status = attempts.some((message) => message.outcome === "exact")
+        ? ("said" as const)
+        : attempts.some((message) => message.outcome === "close")
+          ? ("close" as const)
+          : ("none" as const)
+      let attempt: PhraseAttempt = null
+      for (const message of attempts) {
+        if (message.outcome === "exact" || message.outcome === "close") {
+          attempt = { match: matchSpeech(turn.expect, message.text), text: message.text }
+        }
+      }
+      return { phrase: turn.expect, status, attempt }
+    })
+    return {
+      statuses: results.map((result) => result.status),
+      phraseResults: results,
+      cleanTurns: userTurns.filter((message) => message.outcome === "exact").length,
+    }
+  }
+
+  const spoken = userTurns.map((message) => message.text)
+  const statuses = roleplay.targetPhrases.map((phrase) => phraseStatus(phrase, spoken))
+  return {
+    statuses,
+    phraseResults: roleplay.targetPhrases.map((phrase, index) => ({
+      phrase,
+      status: statuses[index],
+      attempt: bestAttempt(phrase, spoken),
+    })),
+    cleanTurns: userTurns.filter((message) => !message.correction).length,
+  }
+}
+
 export default function SummaryClient({ id }: { id: string }) {
   const router = useRouter()
   const load = useCallback(async () => {
@@ -44,12 +87,11 @@ export default function SummaryClient({ id }: { id: string }) {
     const userTurns = data.conversation.messages.filter((message) => message.role === "user")
     const roleplay = data.lesson.steps.find((step) => step.type === "roleplay")?.roleplay
     if (!roleplay) return
-    const spoken = userTurns.map((message) => message.text)
-    const statuses = roleplay.targetPhrases.map((phrase) => phraseStatus(phrase, spoken))
+    const { statuses, cleanTurns } = derivePhraseResults(roleplay, userTurns)
     const score = sessionScore({
       phrases: statuses,
       userTurns: userTurns.length,
-      cleanTurns: userTurns.filter((message) => !message.correction).length,
+      cleanTurns,
     })
     if (score >= 65) haptic.success()
     else haptic.nudge()
@@ -90,19 +132,12 @@ export default function SummaryClient({ id }: { id: string }) {
   }
 
   const userTurns = data.conversation.messages.filter((message) => message.role === "user")
-  const spoken = userTurns.map((message) => message.text)
-  const statuses = roleplay.targetPhrases.map((phrase) => phraseStatus(phrase, spoken))
-  const cleanTurns = userTurns.filter((message) => !message.correction)
+  const { statuses, phraseResults, cleanTurns } = derivePhraseResults(roleplay, userTurns)
   const score = sessionScore({
     phrases: statuses,
     userTurns: userTurns.length,
-    cleanTurns: cleanTurns.length,
+    cleanTurns,
   })
-  const phraseResults = roleplay.targetPhrases.map((phrase, index) => ({
-    phrase,
-    status: statuses[index],
-    attempt: bestAttempt(phrase, spoken),
-  }))
   const corrections = userTurns.flatMap((message) =>
     message.correction ? [{ original: message.text, ...message.correction }] : [],
   )
@@ -137,7 +172,7 @@ export default function SummaryClient({ id }: { id: string }) {
           <ScoreRing score={score} label={scoreLabel(score)} />
         </div>
         <p className="mt-3 text-sm text-muted-foreground">
-          {said} of {roleplay.targetPhrases.length} phrases said
+          {said} of {phraseResults.length} phrases said
         </p>
       </div>
 
@@ -161,6 +196,9 @@ export default function SummaryClient({ id }: { id: string }) {
             <PhraseCard key={phrase} phrase={phrase} status={status} attempt={attempt} />
           ))}
         </div>
+        <p className="mt-2 text-xs text-muted-foreground">
+          Almost means the words were close but the ending or a small word was off.
+        </p>
       </section>
 
       <section className="mt-8">

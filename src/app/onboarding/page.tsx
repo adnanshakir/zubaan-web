@@ -4,11 +4,12 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { ChevronLeftIcon } from "lucide-react"
 import { TextMorph } from "torph/react"
-import { toast } from "sonner"
 import { OptionList } from "@/components/option-list"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { describeError, api } from "@/lib/api/client"
+import { haptic } from "@/lib/haptics"
+import { notifyError } from "@/lib/notify"
 import type { Goal, Language, Level } from "@/lib/api/types"
 import { GOALS, LANGUAGES, LEVELS } from "@/lib/onboarding-options"
 
@@ -37,9 +38,10 @@ export default function OnboardingPage() {
     setSubmitting(true)
     try {
       await api.onboard({ nativeLanguage: language, goal, level, name: name.trim() || undefined })
+      haptic.success()
       router.replace("/home")
     } catch (error) {
-      toast.error(describeError(error))
+      notifyError(describeError(error))
       setSubmitting(false)
     }
   }

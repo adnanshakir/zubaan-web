@@ -8,7 +8,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 ## Project rules (Zubaan web prototype)
 
-- Read DESIGN.md before any UI work and follow it exactly.
+- Read docs/DESIGN.md before any UI work and follow it exactly.
 - Never open docs/API_REFERENCE.md. Call the backend only through
   src/lib/api/client.ts and use types from src/lib/api/types.ts. For call
   order, error rules or limits, open docs/api/INDEX.md and read ONLY the one

@@ -1,8 +1,8 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
-import { toast } from "sonner"
 import { api, audioSrc, describeError } from "@/lib/api/client"
+import { notifyError } from "@/lib/notify"
 import { TTS_PROVIDER } from "@/lib/config"
 
 export type PlayerStatus = "loading" | "playing"
@@ -44,7 +44,7 @@ export function usePhrasePlayer() {
         if (token !== requestRef.current) return
         audioRef.current = null
         setActive(null)
-        toast.error(describeError(error))
+        notifyError(describeError(error))
       }
     },
     [stop],

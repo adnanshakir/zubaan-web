@@ -40,7 +40,7 @@ export default function LessonsClient() {
           <Button
             key={category.label}
             size="sm"
-            variant={selectedCategory === category.value ? "default" : "outline"}
+            variant={selectedCategory === category.value ? "indigo" : "outline"}
             aria-pressed={selectedCategory === category.value}
             onClick={() => setSelectedCategory(category.value)}
           >

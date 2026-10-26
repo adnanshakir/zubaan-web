@@ -11,18 +11,19 @@ import {
   Volume2Icon,
 } from "lucide-react"
 import { TextMorph } from "torph/react"
-import { toast } from "sonner"
 import { api, audioSrc, describeError } from "@/lib/api/client"
+import { haptic } from "@/lib/haptics"
+import { notifyError } from "@/lib/notify"
+import { isNonLatin } from "@/lib/text"
 import type {
   ConversationGetResponse,
   ConversationMessage,
-  ConversationFeedback,
   LessonDetail,
   RoleplayStep,
 } from "@/lib/api/types"
 import { useAudioPlayer } from "@/hooks/use-audio-player"
 import { useWavRecorder } from "@/hooks/use-wav-recorder"
-import FeedbackSummary from "@/components/feedback-summary"
+import { TargetPhrases } from "@/components/target-phrases"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 
@@ -49,27 +50,35 @@ export default function ConversationView({
   lesson,
   roleplay,
 }: ConversationViewProps) {
-  const [messages, setMessages] = useState<ChatMessage[]>(() =>
-    conversation.messages.map((message, index) => ({
-      key: `m-${index}`,
-      role: message.role,
-      text: message.text,
-      audioUrl: message.audioUrl,
-      correction: message.correction,
-      pending: false,
-      fresh: false,
-    })),
-  )
+  const initialMessages = conversation.messages.map((message, index) => ({
+    key: `m-${index}`,
+    role: message.role,
+    text: message.text,
+    audioUrl: message.audioUrl,
+    correction: message.correction,
+    pending: false,
+    fresh: false,
+  }))
+  const [messages, setMessages] = useState<ChatMessage[]>(initialMessages)
+  const [opening] = useState(() => {
+    const first = initialMessages[0]
+    const src = first?.audioUrl ? audioSrc(first.audioUrl) : null
+    return conversation.status === "active" &&
+      initialMessages.length === 1 &&
+      first?.role === "ai" &&
+      src
+      ? { key: first.key, src }
+      : null
+  })
   const [phase, setPhase] = useState<Phase>("idle")
   const [ended, setEnded] = useState(conversation.status !== "active")
-  const [feedback, setFeedback] = useState<ConversationFeedback | null>(conversation.feedback)
   const [typing, setTyping] = useState(false)
   const [draft, setDraft] = useState("")
   const [ending, setEnding] = useState(false)
   const keyCounter = useRef(conversation.messages.length)
   const bottomRef = useRef<HTMLDivElement>(null)
-  const summaryRef = useRef<HTMLDivElement>(null)
   const player = useAudioPlayer()
+  const { play } = player
 
   const nextKey = () => {
     const key = `m-${keyCounter.current}`
@@ -114,13 +123,15 @@ export default function ConversationView({
       ])
       const src = audioSrc(turn.audioUrl)
       if (src) void player.play(aiKey, src)
+      if (turn.correction) haptic.nudge()
+      else haptic.success()
       if (turn.endConversation || turn.turnsRemaining === 0) {
         setEnded(true)
-        setFeedback(turn.feedback)
+        haptic.success()
       }
     } catch (error) {
       setMessages((current) => current.filter((message) => message.key !== userKey))
-      toast.error(describeError(error))
+      notifyError(describeError(error))
     } finally {
       setPhase("idle")
     }
@@ -132,26 +143,30 @@ export default function ConversationView({
       const result = await api.stt(wav, { language: "en-IN" })
       const text = result.text.trim().slice(0, 500)
       if (!text) {
-        toast.error("We didn't catch that. Try again.")
+        notifyError("We didn't catch that. Try again.")
+        setPhase("idle")
+        return
+      }
+      if (isNonLatin(text)) {
+        notifyError("We couldn't read that as English. Try again, a little slower.")
         setPhase("idle")
         return
       }
       await sendText(text)
     } catch (error) {
-      toast.error(describeError(error))
+      notifyError(describeError(error))
       setPhase("idle")
     }
   }
 
   async function endNow() {
     setEnding(true)
-    player.stop()
     try {
-      const result = await api.endConversation(conversation.conversationId)
+      await api.endConversation(conversation.conversationId)
       setEnded(true)
-      setFeedback(result.feedback)
+      haptic.success()
     } catch (error) {
-      toast.error(describeError(error))
+      notifyError(describeError(error))
     } finally {
       setEnding(false)
     }
@@ -161,18 +176,18 @@ export default function ConversationView({
     onRecorded: (wav) => {
       void handleRecorded(wav)
     },
-    onError: (message) => toast.error(message),
+    onError: (message) => notifyError(message),
   })
   const userCount = messages.filter((message) => message.role === "user").length
   const turnsLeft = Math.max(0, roleplay.maxTurns - userCount)
 
   useEffect(() => {
-    if (ended && summaryRef.current) {
-      summaryRef.current.scrollIntoView({ behavior: "smooth", block: "start" })
-    } else {
-      bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" })
-    }
+    bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" })
   }, [ended, messages.length])
+
+  useEffect(() => {
+    if (opening) void play(opening.key, opening.src)
+  }, [opening, play])
 
   function submitText(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -213,28 +228,31 @@ export default function ConversationView({
         )}
       </header>
       <p className="shrink-0 px-5 pb-3 text-xs text-muted-foreground">Goal: {roleplay.goal}</p>
+      <TargetPhrases
+        phrases={roleplay.targetPhrases}
+        spoken={messages
+          .filter((message) => message.role === "user" && !message.pending)
+          .map((message) => message.text)}
+        ended={ended}
+      />
       <div className="flex-1 overflow-y-auto px-5 py-4">
         <div className="flex flex-col gap-3">
           {messages.map((message) => (
             <MessageBubble key={message.key} message={message} player={player} />
           ))}
-          {ended ? (
-            <div ref={summaryRef}>
-              {feedback ? (
-                <FeedbackSummary feedback={feedback} />
-              ) : (
-                <p className="text-sm text-muted-foreground">Conversation complete.</p>
-              )}
-            </div>
-          ) : null}
           <div ref={bottomRef} />
         </div>
       </div>
       <div className="flex shrink-0 flex-col items-center gap-3 border-t border-border/60 bg-background px-5 pt-4 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
         {ended ? (
-          <Button asChild className="w-full">
-            <Link href="/lessons">Back to lessons</Link>
-          </Button>
+          <>
+            <Button asChild variant="indigo" className="w-full">
+              <Link href={`/conversation/${conversation.conversationId}/summary`}>See summary</Link>
+            </Button>
+            <Button asChild variant="ghost" size="sm">
+              <Link href="/lessons">Back to lessons</Link>
+            </Button>
+          </>
         ) : typing ? (
           <>
             <form className="flex w-full gap-2" onSubmit={submitText}>
@@ -246,7 +264,7 @@ export default function ConversationView({
                 value={draft}
                 onChange={(event) => setDraft(event.target.value)}
               />
-              <Button type="submit" disabled={!draft.trim() || phase !== "idle"}>
+              <Button variant="indigo" type="submit" disabled={!draft.trim() || phase !== "idle"}>
                 Send
               </Button>
             </form>
@@ -271,6 +289,7 @@ export default function ConversationView({
                 loading={recorder.status === "encoding"}
                 disabled={phase !== "idle" || recorder.status === "encoding"}
                 onClick={() => {
+                  haptic.nudge()
                   if (recorder.status === "recording") {
                     recorder.stop()
                   } else {
@@ -327,30 +346,34 @@ function MessageBubble({
 
   return (
     <div className={`flex flex-col gap-2 ${message.role === "user" ? "items-end" : "items-start"}`}>
-      <div
-        className={
-          message.role === "ai"
-            ? "max-w-[85%] rounded-2xl border border-border bg-card px-4 py-3"
-            : `max-w-[85%] rounded-2xl border border-primary/30 bg-primary/20 px-4 py-3 ${
-                message.pending ? "opacity-70" : ""
-              }`
-        }
-      >
-        <p className="text-base">{message.text}</p>
-        {message.role === "ai" && src ? (
-          <Button
-            variant="ghost"
-            size="icon-xs"
-            aria-label={isPlaying ? "Stop reply" : "Play reply"}
-            onClick={() => {
-              if (isPlaying) player.stop()
-              else void player.play(message.key, src)
-            }}
-          >
-            {isPlaying ? <SquareIcon /> : <Volume2Icon />}
-          </Button>
-        ) : null}
-      </div>
+      {message.role === "ai" ? (
+        <div className="flex max-w-[92%] items-end gap-2 self-start">
+          <div className="min-w-0 rounded-2xl border border-border bg-card px-4 py-3">
+            <p className="text-base">{message.text}</p>
+          </div>
+          {src ? (
+            <Button
+              variant="outline"
+              size="icon-sm"
+              aria-label={isPlaying ? "Stop reply" : "Play reply"}
+              onClick={() => {
+                if (isPlaying) player.stop()
+                else void player.play(message.key, src)
+              }}
+            >
+              {isPlaying ? <SquareIcon /> : <Volume2Icon />}
+            </Button>
+          ) : null}
+        </div>
+      ) : (
+        <div
+          className={`max-w-[85%] rounded-2xl border border-primary/30 bg-primary/20 px-4 py-3 ${
+            message.pending ? "opacity-70" : ""
+          }`}
+        >
+          <p className="text-base">{message.text}</p>
+        </div>
+      )}
       {message.role === "user" && !message.pending ? (
         message.correction ? (
           <div

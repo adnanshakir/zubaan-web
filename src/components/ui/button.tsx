@@ -1,6 +1,9 @@
+"use client"
+
 import * as React from "react"
 import { cva, type VariantProps } from "class-variance-authority"
 import { Slot } from "radix-ui"
+import { haptic as hapticFeedback } from "@/lib/haptics"
 import { cn } from "@/lib/utils"
 
 const buttonVariants = cva(
@@ -76,15 +79,18 @@ function Button({
   asChild = false,
   loading = false,
   customColor,
+  haptic = true,
   disabled,
   style,
   children,
+  onClick,
   ...props
 }: React.ComponentProps<"button"> &
   VariantProps<typeof buttonVariants> & {
     asChild?: boolean
     loading?: boolean
     customColor?: string
+    haptic?: boolean
   }) {
   const Comp = asChild ? Slot.Root : "button"
 
@@ -100,6 +106,10 @@ function Button({
       data-loading={loading || undefined}
       disabled={disabled || loading}
       style={customColor ? ({ "--btn-bg": customColor, ...style } as React.CSSProperties) : style}
+      onClick={(event) => {
+        if (haptic) hapticFeedback.tap()
+        onClick?.(event)
+      }}
       className={cn(
         buttonVariants({
           variant: customColor ? undefined : variant,

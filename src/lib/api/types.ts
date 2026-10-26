@@ -9,6 +9,7 @@ export type Goal = "daily_conversation" | "work" | "interviews" | "travel" | "co
 export type LessonCategory = "daily" | "work" | "career" | "travel"
 export type TtsLanguage = "en-IN" | "hi-IN" | "ta-IN" | "te-IN"
 export type TtsProviderName = "kokoro" | "sarvam"
+export type SttMode = "transcribe" | "verbatim" | "codemix" | "translit"
 export type SttProviderName = "sarvam"
 export type ConversationStatus = "active" | "completed" | "abandoned"
 export type MessageRole = "user" | "ai"
@@ -68,6 +69,7 @@ export interface SttRequest {
   // multipart: "audio" file field
   language?: SttLanguageCode
   provider?: SttProviderName
+  mode?: SttMode
 }
 
 // ── Response Bodies ─────────────────────────────────────────
@@ -223,6 +225,7 @@ export interface SttResponse {
   text: string
   languageCode: string | null
   provider: SttProviderName
+  mode: SttMode
   totalMs: number
   durationSeconds: number | null
 }

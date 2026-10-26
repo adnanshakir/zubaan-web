@@ -4,16 +4,18 @@ import { useEffect, useState } from "react"
 import { TextMorph } from "torph/react"
 import { api, describeError } from "@/lib/api/client"
 import { notifyError } from "@/lib/notify"
-import type { SttResponse } from "@/lib/api/types"
+import type { SttMode, SttResponse } from "@/lib/api/types"
 import { useWavRecorder } from "@/hooks/use-wav-recorder"
 import { MicButton } from "@/components/mic-button"
 import { PillSelect } from "@/components/pill-select"
 import { Card, CardContent } from "@/components/ui/card"
 
 type SttChoice = "unknown" | "en-IN" | "hi-IN" | "ta-IN" | "te-IN"
+type ModeChoice = "default" | SttMode
 
 export default function SttPanel() {
   const [language, setLanguage] = useState<SttChoice>("en-IN")
+  const [mode, setMode] = useState<ModeChoice>("default")
   const [busy, setBusy] = useState(false)
   const [result, setResult] = useState<SttResponse | null>(null)
   const [audioUrl, setAudioUrl] = useState<string | null>(null)
@@ -22,7 +24,7 @@ export default function SttPanel() {
     setAudioUrl(URL.createObjectURL(wav))
     setBusy(true)
     try {
-      setResult(await api.stt(wav, { language }))
+      setResult(await api.stt(wav, { language, mode: mode === "default" ? undefined : mode }))
     } catch (error) {
       notifyError(describeError(error))
     } finally {
@@ -67,6 +69,24 @@ export default function SttPanel() {
           value={language}
           onChange={setLanguage}
         />
+        <div className="mt-3">
+          <PillSelect
+            label="Mode"
+            options={[
+              { value: "default", label: "Default" },
+              { value: "codemix", label: "Codemix" },
+              { value: "verbatim", label: "Verbatim" },
+              { value: "transcribe", label: "Transcribe" },
+              { value: "translit", label: "Translit" },
+            ]}
+            value={mode}
+            onChange={setMode}
+          />
+        </div>
+        <p className="mt-2 text-xs text-muted-foreground">
+          Default is chosen by the server. Say the same sentence in each mode: in some modes English
+          speech comes back in Hindi script.
+        </p>
       </div>
       <MicButton
         status={recorder.status}
@@ -94,6 +114,7 @@ export default function SttPanel() {
                 <span>{result.durationSeconds}s audio</span>
               ) : null}
               {result.languageCode ? <span>{result.languageCode}</span> : null}
+              <span>{result.mode}</span>
             </div>
             {audioUrl ? (
               <>

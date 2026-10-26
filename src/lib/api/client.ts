@@ -21,6 +21,7 @@ import type {
   OnboardingRequest,
   OnboardingResponse,
   SttLanguageCode,
+  SttMode,
   SttResponse,
   TtsRequest,
   TtsResponse,
@@ -165,10 +166,11 @@ export const api = {
   tts: (body: TtsRequest) => request<TtsResponse>("/api/speech/tts", post(body)),
 
   /** `audio` must be a WAV blob (16 kHz mono, under 30 seconds). */
-  stt: (audio: Blob, options: { language?: SttLanguageCode } = {}) => {
+  stt: (audio: Blob, options: { language?: SttLanguageCode; mode?: SttMode } = {}) => {
     const form = new FormData()
     form.append("audio", audio, "recording.wav")
     if (options.language) form.append("language", options.language)
+    if (options.mode) form.append("mode", options.mode)
     return request<SttResponse>("/api/speech/stt", { method: "POST", body: form })
   },
 

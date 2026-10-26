@@ -111,6 +111,7 @@ export interface LessonPhrase {
   text: string
   hints: Partial<Record<Language, string>>
   tip?: string | null
+  chunks?: string[]
 }
 
 export interface RoleplayStep {
@@ -121,6 +122,14 @@ export interface RoleplayStep {
   openingLine: string
   maxTurns: number
   targetPhrases: string[]
+  turns?: ScriptedRoleplayTurn[]
+  closingLine?: string
+}
+
+export interface ScriptedRoleplayTurn {
+  ai: string
+  expect: string
+  hint: { en: string; hi: string }
 }
 
 export interface ConversationStartResponse {
@@ -128,6 +137,11 @@ export interface ConversationStartResponse {
   status: ConversationStatus
   messages: ConversationMessage[]
   turnsRemaining: number
+  progress: { current: number; total: number }
+  hasMistake: boolean
+  corrected: string
+  explanation: string
+  mistakeType: MistakeType
 }
 
 export interface ConversationTurnResponse {
@@ -135,6 +149,9 @@ export interface ConversationTurnResponse {
   audioUrl: string | null
   endConversation: boolean
   turnsRemaining: number
+  progress: { current: number; total: number }
+  outcome?: ConversationMessage["outcome"]
+  revealHint?: boolean
   correction: Correction | null
   feedback: ConversationFeedback | null
 }
@@ -163,6 +180,9 @@ export interface ConversationMessage {
   text: string
   audioUrl: string | null
   correction?: Correction | null // user messages only
+  turnIndex: number
+  outcome?: "exact" | "close" | "off" | "moved_on" // user messages only
+  revealHint?: boolean // AI messages only
   createdAt: string // ISO 8601
 }
 

@@ -4,7 +4,9 @@ import { useEffect, useRef, useState, type FormEvent } from "react"
 import Link from "next/link"
 import {
   CheckIcon,
+  CircleDotIcon,
   ChevronLeftIcon,
+  XIcon,
   MicIcon,
   PencilLineIcon,
   SquareIcon,
@@ -23,7 +25,7 @@ import type {
 } from "@/lib/api/types"
 import { useAudioPlayer } from "@/hooks/use-audio-player"
 import { useWavRecorder } from "@/hooks/use-wav-recorder"
-import { TargetPhrases } from "@/components/target-phrases"
+import { TurnHint } from "@/components/turn-hint"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 
@@ -33,6 +35,9 @@ interface ChatMessage {
   text: string
   audioUrl: string | null
   correction: ConversationMessage["correction"]
+  turnIndex: number
+  outcome: ConversationMessage["outcome"]
+  revealHint: boolean
   pending: boolean
   fresh: boolean
 }
@@ -56,6 +61,9 @@ export default function ConversationView({
     text: message.text,
     audioUrl: message.audioUrl,
     correction: message.correction,
+    turnIndex: message.turnIndex,
+    outcome: message.outcome,
+    revealHint: message.revealHint ?? false,
     pending: false,
     fresh: false,
   }))
@@ -75,6 +83,13 @@ export default function ConversationView({
   const [typing, setTyping] = useState(false)
   const [draft, setDraft] = useState("")
   const [ending, setEnding] = useState(false)
+  const [progress, setProgress] = useState(() => {
+    const lastTurn = [...conversation.messages].reverse().find((message) => message.turnIndex >= 0)
+    return {
+      current: lastTurn ? lastTurn.turnIndex + 1 : 0,
+      total: roleplay.turns?.length ?? roleplay.maxTurns,
+    }
+  })
   const keyCounter = useRef(conversation.messages.length)
   const bottomRef = useRef<HTMLDivElement>(null)
   const player = useAudioPlayer()
@@ -98,6 +113,9 @@ export default function ConversationView({
         text,
         audioUrl: null,
         correction: null,
+        turnIndex: Math.max(0, progress.current - 1),
+        outcome: undefined,
+        revealHint: false,
         pending: true,
         fresh: true,
       },
@@ -108,7 +126,12 @@ export default function ConversationView({
       setMessages((current) => [
         ...current.map((message) =>
           message.key === userKey
-            ? { ...message, pending: false, correction: turn.correction }
+            ? {
+                ...message,
+                pending: false,
+                correction: turn.correction,
+                outcome: turn.outcome,
+              }
             : message,
         ),
         {
@@ -117,14 +140,25 @@ export default function ConversationView({
           text: turn.reply,
           audioUrl: turn.audioUrl,
           correction: null,
+          turnIndex: Math.max(0, turn.progress.current - 1),
+          outcome: undefined,
+          revealHint: turn.revealHint ?? false,
           pending: false,
           fresh: true,
         },
       ])
       const src = audioSrc(turn.audioUrl)
       if (src) void player.play(aiKey, src)
-      if (turn.correction) haptic.nudge()
-      else haptic.success()
+      setProgress(turn.progress)
+      if (roleplay.turns?.length) {
+        if (turn.outcome === "exact") haptic.success()
+        else if (turn.outcome === "close") haptic.nudge()
+        else if (turn.outcome === "off") haptic.error()
+      } else if (turn.correction) {
+        haptic.nudge()
+      } else {
+        haptic.success()
+      }
       if (turn.endConversation || turn.turnsRemaining === 0) {
         setEnded(true)
         haptic.success()
@@ -228,18 +262,59 @@ export default function ConversationView({
         )}
       </header>
       <p className="shrink-0 px-5 pb-3 text-xs text-muted-foreground">Goal: {roleplay.goal}</p>
-      <TargetPhrases
-        phrases={roleplay.targetPhrases}
-        spoken={messages
-          .filter((message) => message.role === "user" && !message.pending)
-          .map((message) => message.text)}
-        ended={ended}
-      />
+      {roleplay.turns?.length ? (
+        <div className="flex items-center gap-3 px-5 pb-3 text-xs text-muted-foreground">
+          <span>
+            Turn {Math.min(progress.current, progress.total)} of {progress.total}
+          </span>
+          <div
+            className="flex items-center gap-1.5"
+            aria-label={`Turn ${progress.current} of ${progress.total}`}
+          >
+            {roleplay.turns.map((turn, index) => (
+              <span
+                key={`${turn.expect}-${index}`}
+                className={`size-1.5 rounded-full ${
+                  index < progress.current
+                    ? "bg-indigo-400"
+                    : index === progress.current
+                      ? "bg-foreground"
+                      : "bg-muted"
+                }`}
+              />
+            ))}
+          </div>
+        </div>
+      ) : null}
       <div className="flex-1 overflow-y-auto px-5 py-4">
         <div className="flex flex-col gap-3">
-          {messages.map((message) => (
-            <MessageBubble key={message.key} message={message} player={player} />
-          ))}
+          {messages.map((message, index) => {
+            const latestAiIndex = messages.findLastIndex(
+              (item) => item.role === "ai" && item.turnIndex >= 0,
+            )
+            const nextUser = messages
+              .slice(index + 1)
+              .find((item) => item.role === "user" && item.turnIndex === message.turnIndex)
+            const laterAiForTurn = messages
+              .slice(index + 1)
+              .some((item) => item.role === "ai" && item.turnIndex === message.turnIndex)
+            const turn =
+              message.role === "ai" && roleplay.turns
+                ? roleplay.turns[message.turnIndex]
+                : undefined
+            return (
+              <MessageBubble
+                key={message.key}
+                message={message}
+                player={player}
+                turn={turn}
+                showHint={!ended && index === latestAiIndex}
+                targetOutcome={
+                  !laterAiForTurn && nextUser?.outcome !== undefined ? nextUser.outcome : undefined
+                }
+              />
+            )
+          })}
           <div ref={bottomRef} />
         </div>
       </div>
@@ -258,7 +333,7 @@ export default function ConversationView({
             <form className="flex w-full gap-2" onSubmit={submitText}>
               <Input
                 maxLength={500}
-                placeholder="Type your reply"
+                placeholder="Type your answer"
                 aria-label="Your reply"
                 className="h-10 rounded-xl"
                 value={draft}
@@ -336,9 +411,15 @@ export default function ConversationView({
 function MessageBubble({
   message,
   player,
+  turn,
+  showHint,
+  targetOutcome,
 }: {
   message: ChatMessage
   player: ReturnType<typeof useAudioPlayer>
+  turn?: NonNullable<RoleplayStep["turns"]>[number]
+  showHint: boolean
+  targetOutcome?: ConversationMessage["outcome"]
 }) {
   const isPlaying = player.activeId === message.key
   const src = audioSrc(message.audioUrl)
@@ -394,6 +475,20 @@ function MessageBubble({
             Sounds good
           </p>
         )
+      ) : null}
+      {message.role === "ai" && turn && showHint ? (
+        <TurnHint turn={turn} revealed={message.revealHint} />
+      ) : message.role === "ai" && turn && targetOutcome ? (
+        <p className="flex items-center gap-1 text-xs text-muted-foreground">
+          {targetOutcome === "exact" ? (
+            <CheckIcon className="size-3.5 text-emerald-400" />
+          ) : targetOutcome === "close" ? (
+            <CircleDotIcon className="size-3.5 text-amber-400" />
+          ) : targetOutcome === "moved_on" || targetOutcome === "off" ? (
+            <XIcon className="size-3.5 text-rose-400" />
+          ) : null}
+          <span>Target: {turn.expect}</span>
+        </p>
       ) : null}
     </div>
   )

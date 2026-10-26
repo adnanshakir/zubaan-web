@@ -22,6 +22,7 @@ export default function SttPanel() {
 
   async function transcribe(wav: Blob) {
     setAudioUrl(URL.createObjectURL(wav))
+    setResult(null)
     setBusy(true)
     try {
       setResult(await api.stt(wav, { language, mode: mode === "default" ? undefined : mode }))

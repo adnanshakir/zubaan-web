@@ -106,6 +106,7 @@ function LessonContent({
                       const phrase = allPhrases[index]
                       return phrase ? [{ id: `repeat-${index}`, text: phrase.text }] : []
                     })}
+                    player={player}
                   />
                 </StepCard>
               ) : (

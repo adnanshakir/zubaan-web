@@ -89,7 +89,7 @@ export default function MistakeList({ type }: MistakeListProps) {
               <Button
                 variant="outline"
                 size="icon"
-                aria-label={`Play: ${item.corrected}`}
+                aria-label={`${isPlaying ? "Stop" : "Play"}: ${item.corrected}`}
                 loading={status === "loading"}
                 onClick={() =>
                   isPlaying ? player.stop() : void player.play(item.id, item.corrected)

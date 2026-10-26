@@ -8,7 +8,7 @@ import { matchSpeech } from "@/lib/speech-match"
 import { haptic } from "@/lib/haptics"
 import { notifyError } from "@/lib/notify"
 import { isNonLatin } from "@/lib/text"
-import { usePhrasePlayer } from "@/hooks/use-phrase-player"
+import type { usePhrasePlayer } from "@/hooks/use-phrase-player"
 import { useWavRecorder } from "@/hooks/use-wav-recorder"
 import { Button } from "@/components/ui/button"
 import { ColoredSentence } from "@/components/colored-sentence"
@@ -17,6 +17,7 @@ import { VerdictBadge } from "@/components/verdict-badge"
 
 interface PhrasePracticeProps {
   phrases: ReadonlyArray<{ id: string; text: string }>
+  player: ReturnType<typeof usePhrasePlayer>
 }
 
 interface PracticeResult {
@@ -24,8 +25,7 @@ interface PracticeResult {
   heard: string
 }
 
-export function PhrasePractice({ phrases }: PhrasePracticeProps) {
-  const player = usePhrasePlayer()
+export function PhrasePractice({ phrases, player }: PhrasePracticeProps) {
   const targetRef = useRef<string | null>(null)
   const [recordingId, setRecordingId] = useState<string | null>(null)
   const [busyId, setBusyId] = useState<string | null>(null)

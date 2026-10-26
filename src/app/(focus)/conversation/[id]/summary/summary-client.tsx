@@ -40,7 +40,7 @@ export default function SummaryClient({ id }: { id: string }) {
   const [starting, setStarting] = useState(false)
 
   useEffect(() => {
-    if (!data) return
+    if (!data || data.conversation.status === "active") return
     const userTurns = data.conversation.messages.filter((message) => message.role === "user")
     const roleplay = data.lesson.steps.find((step) => step.type === "roleplay")?.roleplay
     if (!roleplay) return

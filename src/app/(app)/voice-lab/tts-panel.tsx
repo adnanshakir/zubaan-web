@@ -1,6 +1,6 @@
 "use client"
 
-import { useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { PlayIcon, SquareIcon } from "lucide-react"
 import { TextMorph } from "torph/react"
 import { api, audioSrc, describeError } from "@/lib/api/client"
@@ -27,7 +27,7 @@ type Entry = {
   audioUrl: string
 }
 
-export default function TtsPanel() {
+export default function TtsPanel({ isVisible }: { isVisible: boolean }) {
   const [text, setText] = useState("Hello! Welcome to your English lesson. How are you today?")
   const [provider, setProvider] = useState<TtsProviderName>("kokoro")
   const [language, setLanguage] = useState<TtsLanguage>("en-IN")
@@ -35,8 +35,19 @@ export default function TtsPanel() {
   const [pace, setPace] = useState<Pace>("default")
   const [generating, setGenerating] = useState(false)
   const [history, setHistory] = useState<Entry[]>([])
-  const player = useAudioPlayer()
+  const { activeId, play, stop } = useAudioPlayer()
   const counter = useRef(0)
+  const mounted = useRef(true)
+
+  useEffect(() => {
+    return () => {
+      mounted.current = false
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!isVisible) stop()
+  }, [isVisible, stop])
 
   async function generate() {
     setGenerating(true)
@@ -61,7 +72,7 @@ export default function TtsPanel() {
       }
       setHistory((previous) => [entry, ...previous].slice(0, 6))
       const src = audioSrc(result.audioUrl)
-      if (src) void player.play(entry.id, src)
+      if (mounted.current && isVisible && src) void play(entry.id, src)
     } catch (error) {
       notifyError(describeError(error))
     } finally {
@@ -141,7 +152,7 @@ export default function TtsPanel() {
           <h2 className="text-lg font-medium">Recent</h2>
           <div className="flex flex-col gap-2">
             {history.map((entry, index) => {
-              const active = player.activeId === entry.id
+              const active = activeId === entry.id
               return (
                 <Card
                   key={entry.id}
@@ -152,9 +163,7 @@ export default function TtsPanel() {
                     size="icon-sm"
                     aria-label="Play result"
                     onClick={() =>
-                      active
-                        ? player.stop()
-                        : void player.play(entry.id, audioSrc(entry.audioUrl) ?? "")
+                      active ? stop() : void play(entry.id, audioSrc(entry.audioUrl) ?? "")
                     }
                   >
                     {active ? <SquareIcon /> : <PlayIcon />}

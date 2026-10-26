@@ -25,6 +25,8 @@ export function TargetPhrases({ phrases, spoken, ended }: TargetPhrasesProps) {
   )
   const said = statuses.filter((status) => status === "said").length
 
+  if (!phrases.length) return null
+
   return (
     <div className="flex flex-col gap-2 px-5 pb-3">
       <Button

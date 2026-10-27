@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import type { OrderWordsExercise } from "@/lib/api/types"
-import { shuffle } from "@/lib/lesson-player"
+import { buildTiles, shuffle } from "@/lib/lesson-player"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 
@@ -19,27 +19,25 @@ export function OrderWordsExercise({
   onChange,
   disabled = false,
 }: OrderWordsExerciseProps) {
-  const [tiles] = useState(() =>
-    shuffle([...exercise.answer.split(" "), ...(exercise.extraWords ?? [])]),
-  )
+  const [tiles] = useState(() => shuffle(buildTiles(exercise.answer, exercise.extraWords)))
   const [selected, setSelected] = useState<number[]>([])
 
   function choose(index: number) {
     if (disabled || selected.includes(index)) return
     const next = [...selected, index]
     setSelected(next)
-    onChange(next.map((tileIndex) => tiles[tileIndex]))
+    onChange(next.map((tileIndex) => tiles[tileIndex].label))
   }
 
   function remove(index: number) {
     if (disabled) return
     const next = selected.filter((tileIndex) => tileIndex !== index)
     setSelected(next)
-    onChange(next.map((tileIndex) => tiles[tileIndex]))
+    onChange(next.map((tileIndex) => tiles[tileIndex].label))
   }
 
   const selectedWords =
-    value.length === selected.length ? value : selected.map((tileIndex) => tiles[tileIndex])
+    value.length === selected.length ? value : selected.map((tileIndex) => tiles[tileIndex].label)
 
   return (
     <div className="flex flex-col gap-6">
@@ -64,7 +62,7 @@ export function OrderWordsExercise({
       <div className="flex flex-wrap gap-2">
         {tiles.map((tile, index) => (
           <Button
-            key={`${tile}-${index}`}
+            key={tile.id}
             variant="outline"
             radius="full"
             disabled={disabled || selected.includes(index)}
@@ -72,7 +70,7 @@ export function OrderWordsExercise({
             className={cn(selected.includes(index) && "opacity-40")}
             onClick={() => choose(index)}
           >
-            {tile}
+            {tile.label}
           </Button>
         ))}
       </div>

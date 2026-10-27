@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { CheckIcon, XIcon } from "lucide-react"
+import { CheckIcon, FlameIcon, XIcon } from "lucide-react"
 import { useRouter } from "next/navigation"
 import type { Exercise, LessonDetail } from "@/lib/api/types"
 import { api, describeError } from "@/lib/api/client"
@@ -10,8 +10,10 @@ import { haptic } from "@/lib/haptics"
 import {
   isCorrect,
   buildQueue,
-  requeueWrong,
+  scheduleRetry,
   stageStats,
+  streakAfter,
+  streakMilestone,
   type QueueItem,
 } from "@/lib/lesson-player"
 import { notifyError } from "@/lib/notify"
@@ -29,7 +31,7 @@ import { Card } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
 
-type Phase = "intro" | "exercise" | "stage-done" | "ready"
+type Phase = "intro" | "exercise" | "review" | "stage-done" | "ready"
 type Answer = string | string[] | null
 
 const praise = ["Nice!", "Correct!", "Well done!", "Exactly right"]
@@ -61,9 +63,10 @@ function LessonPlayer({ id, lesson }: { id: string; lesson: LessonDetail }) {
   const router = useRouter()
   const [phase, setPhase] = useState<Phase>("intro")
   const [stageIndex, setStageIndex] = useState(0)
-  const [queue, setQueue] = useState<QueueItem[]>(() =>
-    buildQueue(lesson.stages[0]?.exercises ?? []),
-  )
+  const [plan, setPlan] = useState(() => ({
+    queue: buildQueue(lesson.stages[0]?.exercises ?? []),
+    review: [] as QueueItem[],
+  }))
   const [answer, setAnswer] = useState<Answer>(null)
   const [checked, setChecked] = useState(false)
   const [lastCorrect, setLastCorrect] = useState<boolean | null>(null)
@@ -71,10 +74,15 @@ function LessonPlayer({ id, lesson }: { id: string; lesson: LessonDetail }) {
   const [results, setResults] = useState<Record<string, boolean>>({})
   const [leaving, setLeaving] = useState(false)
   const [starting, setStarting] = useState(false)
+  const [streak, setStreak] = useState(0)
+  const [bestStreak, setBestStreak] = useState(0)
+  const [milestone, setMilestone] = useState<string | null>(null)
+  const [lastStreakEnded, setLastStreakEnded] = useState<number | null>(null)
   const skipRequested = useRef(false)
+  const milestoneTimeout = useRef<number | null>(null)
 
   const stage = lesson.stages[stageIndex]
-  const item = queue[0]
+  const item = plan.queue[0]
   const current = item?.exercise
   const totalExercises = lesson.stages.reduce(
     (total, currentStage) => total + currentStage.exercises.length,
@@ -104,7 +112,7 @@ function LessonPlayer({ id, lesson }: { id: string; lesson: LessonDetail }) {
   }, [answer, checked, current, phase, checkAnswer, continueExercise])
 
   function startStage() {
-    setQueue(buildQueue(stage?.exercises ?? []))
+    setPlan({ queue: buildQueue(stage?.exercises ?? []), review: [] })
     setAnswer(null)
     setChecked(false)
     setLastCorrect(null)
@@ -121,6 +129,26 @@ function LessonPlayer({ id, lesson }: { id: string; lesson: LessonDetail }) {
     if (checked || !item) return
     if (!item.retried) {
       setResults((previous) => ({ ...previous, [item.exercise.id]: correct }))
+      const nextStreak = streakAfter(
+        streak,
+        skipFeedback ? "skipped" : correct ? "correct" : "wrong",
+        false,
+      )
+      setStreak(nextStreak)
+      setBestStreak((previous) => Math.max(previous, nextStreak))
+      setLastStreakEnded(!correct && !skipFeedback && streak >= 3 ? streak : null)
+      const message = streakMilestone(nextStreak)
+      if (message) {
+        setMilestone(message)
+        if (streak === 3) haptic.nudge()
+        else haptic.success()
+        if (milestoneTimeout.current !== null) {
+          window.clearTimeout(milestoneTimeout.current)
+        }
+        milestoneTimeout.current = window.setTimeout(() => setMilestone(null), 1800)
+      }
+    } else {
+      setLastStreakEnded(null)
     }
     if (skipFeedback) {
       continueExercise(correct)
@@ -131,7 +159,9 @@ function LessonPlayer({ id, lesson }: { id: string; lesson: LessonDetail }) {
     setChecked(true)
     if (correct) haptic.success()
     else haptic.error()
-    if (!correct) setQueue((previous) => requeueWrong(previous, item))
+    if (!correct) {
+      setPlan((previous) => scheduleRetry(previous, 0, item))
+    }
   }
 
   function checkAnswer() {
@@ -147,15 +177,27 @@ function LessonPlayer({ id, lesson }: { id: string; lesson: LessonDetail }) {
 
   function continueExercise(correct = lastCorrect) {
     if (correct === null || !item) return
-    const remaining = queue.slice(1)
-    setQueue(remaining)
+    const remaining = plan.queue.slice(1)
+    setPlan((previous) => ({ ...previous, queue: remaining }))
     setAnswer(null)
     setChecked(false)
     setLastCorrect(null)
     setLastLabel(undefined)
     if (remaining.length > 0) return
+    if (plan.review.length > 0) {
+      setPhase("review")
+      return
+    }
     setPhase("stage-done")
     haptic.success()
+  }
+
+  function startReview() {
+    setPlan({ queue: plan.review, review: [] })
+    setAnswer(null)
+    setChecked(false)
+    setLastCorrect(null)
+    setPhase("exercise")
   }
 
   function continueStage() {
@@ -164,7 +206,10 @@ function LessonPlayer({ id, lesson }: { id: string; lesson: LessonDetail }) {
       return
     }
     setStageIndex((index) => index + 1)
-    setQueue(buildQueue(lesson.stages[stageIndex + 1]?.exercises ?? []))
+    setPlan({
+      queue: buildQueue(lesson.stages[stageIndex + 1]?.exercises ?? []),
+      review: [],
+    })
     setPhase("intro")
   }
 
@@ -203,6 +248,15 @@ function LessonPlayer({ id, lesson }: { id: string; lesson: LessonDetail }) {
               style={{ width: `${progress}%` }}
             />
           </div>
+          {streak >= 2 ? (
+            <div
+              key={streak}
+              className="flex shrink-0 animate-in items-center gap-1 text-sm text-amber-400 duration-200 zoom-in-95 motion-reduce:animate-none"
+            >
+              <FlameIcon className="size-4" />
+              <span>{streak}</span>
+            </div>
+          ) : null}
         </div>
         {leaving ? (
           <div className="flex animate-in items-center justify-between rounded-xl border border-border px-3 py-2 text-sm duration-200 fade-in-0 slide-in-from-top-1">
@@ -249,11 +303,24 @@ function LessonPlayer({ id, lesson }: { id: string; lesson: LessonDetail }) {
           </div>
         ) : null}
 
+        {phase === "review" ? (
+          <Card className="flex animate-in flex-col gap-5 rounded-2xl p-5 shadow-none duration-200 fade-in-0 slide-in-from-bottom-1">
+            <div>
+              <h1 className="text-2xl font-semibold tracking-tight">Quick review</h1>
+              <p className="mt-2 text-sm text-muted-foreground">{plan.review.length} to fix</p>
+            </div>
+            <Button variant="indigo" onClick={startReview}>
+              Start
+            </Button>
+          </Card>
+        ) : null}
+
         {phase === "stage-done" && stage ? (
           <div className="flex animate-in flex-col gap-5 text-center duration-200 fade-in-0 slide-in-from-bottom-1">
             <h1 className="text-2xl font-semibold tracking-tight">{stage.title} complete</h1>
             <p className="text-muted-foreground">
               {stats.firstTry} of {stats.total} right the first time
+              {bestStreak >= 2 ? ` · Best streak ${bestStreak}` : ""}
             </p>
             <Button variant="indigo" onClick={continueStage}>
               Continue
@@ -293,6 +360,14 @@ function LessonPlayer({ id, lesson }: { id: string; lesson: LessonDetail }) {
           </div>
         ) : null}
       </main>
+
+      {milestone ? (
+        <div className="pointer-events-none fixed inset-x-0 bottom-24 z-10 flex justify-center">
+          <div className="rounded-full border border-amber-400/30 bg-amber-400/10 px-4 py-2 text-sm font-medium text-amber-400">
+            {milestone}
+          </div>
+        </div>
+      ) : null}
 
       {phase === "exercise" &&
       current &&
@@ -335,6 +410,11 @@ function LessonPlayer({ id, lesson }: { id: string; lesson: LessonDetail }) {
                 </p>
                 {!lastCorrect && lastLabel ? (
                   <p className="mt-1 text-sm">Correct answer: {lastLabel}</p>
+                ) : null}
+                {!lastCorrect && lastStreakEnded !== null ? (
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Streak ended at {lastStreakEnded}
+                  </p>
                 ) : null}
                 {current.type !== "match_pairs" &&
                 current.type !== "speak" &&

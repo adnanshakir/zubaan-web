@@ -3,7 +3,7 @@
 import { useState } from "react"
 import type { MatchPairsExercise } from "@/lib/api/types"
 import { haptic } from "@/lib/haptics"
-import { shuffle } from "@/lib/lesson-player"
+import { shuffleColumns } from "@/lib/lesson-player"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 
@@ -13,7 +13,7 @@ interface MatchPairsExerciseProps {
 }
 
 export function MatchPairsExercise({ exercise, onResult }: MatchPairsExerciseProps) {
-  const [rightItems] = useState(() => shuffle(exercise.pairs))
+  const [{ left: leftItems, right: rightItems }] = useState(() => shuffleColumns(exercise.pairs))
   const [left, setLeft] = useState<string | null>(null)
   const [right, setRight] = useState<string | null>(null)
   const [matched, setMatched] = useState<string[]>([])
@@ -62,7 +62,7 @@ export function MatchPairsExercise({ exercise, onResult }: MatchPairsExercisePro
       <h2 className="text-xl font-semibold">{exercise.prompt}</h2>
       <div className="grid grid-cols-2 gap-3">
         <div className="flex flex-col gap-3">
-          {exercise.pairs.map((pair) => (
+          {leftItems.map((pair) => (
             <Button
               key={pair.en}
               variant="outline"

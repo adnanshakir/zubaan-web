@@ -80,6 +80,10 @@ A floating island pill, fixed bottom center:
 - Hidden on the conversation screen, which has its own header with a back
   button. Add safe-area padding (`pb-[env(safe-area-inset-bottom)]`).
 
+## Lesson flow
+
+Overview -> player (words, sentences) -> conversation -> summary.
+
 ## Components
 
 - **Buttons:** always `Button` from `@/components/ui/button`. It is our custom

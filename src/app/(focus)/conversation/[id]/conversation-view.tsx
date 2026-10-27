@@ -20,9 +20,10 @@ import { isNonLatin } from "@/lib/text"
 import type {
   ConversationGetResponse,
   ConversationMessage,
+  ChatTurn,
   LessonDetail,
-  RoleplayStep,
 } from "@/lib/api/types"
+import { turnSentence } from "@/lib/lesson-helpers"
 import { useAudioPlayer } from "@/hooks/use-audio-player"
 import { useWavRecorder } from "@/hooks/use-wav-recorder"
 import { TurnHint } from "@/components/turn-hint"
@@ -47,14 +48,10 @@ type Phase = "idle" | "transcribing" | "thinking"
 interface ConversationViewProps {
   conversation: ConversationGetResponse
   lesson: LessonDetail
-  roleplay: RoleplayStep
 }
 
-export default function ConversationView({
-  conversation,
-  lesson,
-  roleplay,
-}: ConversationViewProps) {
+export default function ConversationView({ conversation, lesson }: ConversationViewProps) {
+  const chat = lesson.chat
   const initialMessages = conversation.messages.map((message, index) => ({
     key: `m-${index}`,
     role: message.role,
@@ -87,7 +84,7 @@ export default function ConversationView({
     const lastTurn = [...conversation.messages].reverse().find((message) => message.turnIndex >= 0)
     return {
       current: lastTurn ? lastTurn.turnIndex + 1 : 0,
-      total: roleplay.turns?.length ?? roleplay.maxTurns,
+      total: chat.turns.length,
     }
   })
   const keyCounter = useRef(conversation.messages.length)
@@ -123,6 +120,10 @@ export default function ConversationView({
     setPhase("thinking")
     try {
       const turn = await api.takeTurn(conversation.conversationId, text)
+      const nextProgress = {
+        current: Math.min(progress.current + 1, progress.total),
+        total: progress.total,
+      }
       setMessages((current) => [
         ...current.map((message) =>
           message.key === userKey
@@ -130,7 +131,7 @@ export default function ConversationView({
                 ...message,
                 pending: false,
                 correction: turn.correction,
-                outcome: turn.outcome,
+                outcome: undefined,
               }
             : message,
         ),
@@ -140,21 +141,17 @@ export default function ConversationView({
           text: turn.reply,
           audioUrl: turn.audioUrl,
           correction: null,
-          turnIndex: Math.max(0, turn.progress.current - 1),
+          turnIndex: Math.max(0, nextProgress.current - 1),
           outcome: undefined,
-          revealHint: turn.revealHint ?? false,
+          revealHint: false,
           pending: false,
           fresh: true,
         },
       ])
       const src = audioSrc(turn.audioUrl)
       if (src) void player.play(aiKey, src)
-      setProgress(turn.progress)
-      if (roleplay.turns?.length) {
-        if (turn.outcome === "exact") haptic.success()
-        else if (turn.outcome === "close") haptic.nudge()
-        else if (turn.outcome === "off") haptic.error()
-      } else if (turn.correction) {
+      setProgress(nextProgress)
+      if (turn.correction) {
         haptic.nudge()
       } else {
         haptic.success()
@@ -213,7 +210,7 @@ export default function ConversationView({
     onError: (message) => notifyError(message),
   })
   const userCount = messages.filter((message) => message.role === "user").length
-  const turnsLeft = Math.max(0, roleplay.maxTurns - userCount)
+  const turnsLeft = Math.max(0, chat.turns.length - userCount)
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" })
@@ -261,8 +258,8 @@ export default function ConversationView({
           <div className="size-8" />
         )}
       </header>
-      <p className="shrink-0 px-5 pb-3 text-xs text-muted-foreground">Goal: {roleplay.goal}</p>
-      {roleplay.turns?.length ? (
+      <p className="shrink-0 px-5 pb-3 text-xs text-muted-foreground">Goal: {chat.goal}</p>
+      {chat.turns.length ? (
         <div className="flex items-center gap-3 px-5 pb-3 text-xs text-muted-foreground">
           <span>
             Turn {Math.min(progress.current, progress.total)} of {progress.total}
@@ -271,9 +268,9 @@ export default function ConversationView({
             className="flex items-center gap-1.5"
             aria-label={`Turn ${progress.current} of ${progress.total}`}
           >
-            {roleplay.turns.map((turn, index) => (
+            {chat.turns.map((turn, index) => (
               <span
-                key={`${turn.expect}-${index}`}
+                key={`${turn.sentenceId}-${index}`}
                 className={`size-1.5 rounded-full ${
                   index < progress.current
                     ? "bg-indigo-400"
@@ -299,8 +296,11 @@ export default function ConversationView({
               .slice(index + 1)
               .some((item) => item.role === "ai" && item.turnIndex === message.turnIndex)
             const turn =
-              message.role === "ai" && roleplay.turns
-                ? roleplay.turns[message.turnIndex]
+              message.role === "ai" && chat.turns[message.turnIndex]
+                ? {
+                    ...chat.turns[message.turnIndex],
+                    expect: turnSentence(lesson, message.turnIndex),
+                  }
                 : undefined
             return (
               <MessageBubble
@@ -417,7 +417,7 @@ function MessageBubble({
 }: {
   message: ChatMessage
   player: ReturnType<typeof useAudioPlayer>
-  turn?: NonNullable<RoleplayStep["turns"]>[number]
+  turn?: ChatTurn & { expect: string }
   showHint: boolean
   targetOutcome?: ConversationMessage["outcome"]
 }) {

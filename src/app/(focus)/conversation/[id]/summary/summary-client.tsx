@@ -5,6 +5,7 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { CheckIcon, CircleDotIcon, PencilLineIcon, XIcon } from "lucide-react"
 import { api, describeError } from "@/lib/api/client"
+import { turnSentence } from "@/lib/lesson-helpers"
 import { bestAttempt, phraseStatus, type PhraseStatus } from "@/lib/phrase-status"
 import { sessionScore, scoreLabel } from "@/lib/summary-score"
 import { matchSpeech, type MatchResult } from "@/lib/speech-match"
@@ -33,11 +34,12 @@ const CORRECTION_LABELS = {
 type PhraseAttempt = { match: MatchResult; text: string } | null
 
 function derivePhraseResults(
-  roleplay: NonNullable<Awaited<ReturnType<typeof api.lesson>>["steps"][number]["roleplay"]>,
+  lesson: Awaited<ReturnType<typeof api.lesson>>,
   userTurns: Awaited<ReturnType<typeof api.conversation>>["messages"],
 ) {
-  if (roleplay.turns?.length) {
-    const results = roleplay.turns.map((turn, turnIndex) => {
+  if (lesson.chat.turns.length) {
+    const results = lesson.chat.turns.map((turn, turnIndex) => {
+      const phrase = turnSentence(lesson, turnIndex)
       const attempts = userTurns.filter((message) => message.turnIndex === turnIndex)
       const status = attempts.some((message) => message.outcome === "exact")
         ? ("said" as const)
@@ -47,10 +49,10 @@ function derivePhraseResults(
       let attempt: PhraseAttempt = null
       for (const message of attempts) {
         if (message.outcome === "exact" || message.outcome === "close") {
-          attempt = { match: matchSpeech(turn.expect, message.text), text: message.text }
+          attempt = { match: matchSpeech(phrase, message.text), text: message.text }
         }
       }
-      return { phrase: turn.expect, status, attempt }
+      return { phrase, status, attempt }
     })
     return {
       statuses: results.map((result) => result.status),
@@ -60,10 +62,11 @@ function derivePhraseResults(
   }
 
   const spoken = userTurns.map((message) => message.text)
-  const statuses = roleplay.targetPhrases.map((phrase) => phraseStatus(phrase, spoken))
+  const phrases = lesson.chat.turns.map((_, index) => turnSentence(lesson, index))
+  const statuses = phrases.map((phrase) => phraseStatus(phrase, spoken))
   return {
     statuses,
-    phraseResults: roleplay.targetPhrases.map((phrase, index) => ({
+    phraseResults: phrases.map((phrase, index) => ({
       phrase,
       status: statuses[index],
       attempt: bestAttempt(phrase, spoken),
@@ -85,9 +88,7 @@ export default function SummaryClient({ id }: { id: string }) {
   useEffect(() => {
     if (!data || data.conversation.status === "active") return
     const userTurns = data.conversation.messages.filter((message) => message.role === "user")
-    const roleplay = data.lesson.steps.find((step) => step.type === "roleplay")?.roleplay
-    if (!roleplay) return
-    const { statuses, cleanTurns } = derivePhraseResults(roleplay, userTurns)
+    const { statuses, cleanTurns } = derivePhraseResults(data.lesson, userTurns)
     const score = sessionScore({
       phrases: statuses,
       userTurns: userTurns.length,
@@ -116,8 +117,6 @@ export default function SummaryClient({ id }: { id: string }) {
   }
   if (!data) return null
 
-  const roleplay = data.lesson.steps.find((step) => step.type === "roleplay")?.roleplay
-  if (!roleplay) return null
   if (data.conversation.status === "active") {
     return (
       <div className="mx-auto flex min-h-dvh w-full max-w-md flex-col px-5 py-8">
@@ -132,7 +131,7 @@ export default function SummaryClient({ id }: { id: string }) {
   }
 
   const userTurns = data.conversation.messages.filter((message) => message.role === "user")
-  const { statuses, phraseResults, cleanTurns } = derivePhraseResults(roleplay, userTurns)
+  const { statuses, phraseResults, cleanTurns } = derivePhraseResults(data.lesson, userTurns)
   const score = sessionScore({
     phrases: statuses,
     userTurns: userTurns.length,

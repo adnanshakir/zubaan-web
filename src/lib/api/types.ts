@@ -93,42 +93,98 @@ export interface LessonListItem {
   level: Level
   objective: string
   estimatedMinutes: number
+  sentenceCount: number
+  exerciseCount: number
 }
 
 export interface LessonDetail extends LessonListItem {
-  steps: LessonStep[]
+  sentences: Sentence[]
+  stages: Stage[]
+  chat: Chat
 }
 
-export interface LessonStep {
-  order: number
-  type: "learn" | "repeat" | "roleplay"
-  phrases?: LessonPhrase[]
-  phraseIndexes?: number[]
-  roleplay?: RoleplayStep
-}
-
-export interface LessonPhrase {
+export interface Sentence {
+  id: string
   text: string
-  hints: Partial<Record<Language, string>>
-  tip?: string | null
-  chunks?: string[]
+  hi: string
+  tip: string
+  chunks: string[]
 }
 
-export interface RoleplayStep {
+export interface Stage {
+  id: "words" | "sentences"
+  title: string
+  intro: string
+  exercises: Exercise[]
+}
+
+export type Exercise =
+  | McqExercise
+  | GapExercise
+  | ListenPickExercise
+  | MatchPairsExercise
+  | OrderWordsExercise
+  | SpeakExercise
+
+export interface McqExercise {
+  id: string
+  type: "mcq"
+  prompt: string
+  promptHi?: string
+  options: string[]
+  correct: string
+  explanation: string
+}
+export interface GapExercise {
+  id: string
+  type: "gap"
+  sentence: string
+  hi: string
+  options: string[]
+  correct: string
+  explanation: string
+}
+export interface ListenPickExercise {
+  id: string
+  type: "listen_pick"
+  prompt: string
+  text: string
+  options: string[]
+  correct: string
+  explanation: string
+}
+export interface MatchPairsExercise {
+  id: string
+  type: "match_pairs"
+  prompt: string
+  pairs: { en: string; hi: string }[]
+}
+export interface OrderWordsExercise {
+  id: string
+  type: "order_words"
+  promptHi: string
+  answer: string
+  extraWords?: string[]
+  explanation: string
+}
+export interface SpeakExercise {
+  id: string
+  type: "speak"
+  sentenceId: string
+}
+
+export interface Chat {
   aiRole: string
   userRole: string
   situation: string
   goal: string
-  openingLine: string
-  maxTurns: number
-  targetPhrases: string[]
-  turns?: ScriptedRoleplayTurn[]
-  closingLine?: string
+  turns: ChatTurn[]
+  closingLine: string
 }
 
-export interface ScriptedRoleplayTurn {
+export interface ChatTurn {
   ai: string
-  expect: string
+  sentenceId: string
   hint: { en: string; hi: string }
 }
 
@@ -149,9 +205,6 @@ export interface ConversationTurnResponse {
   audioUrl: string | null
   endConversation: boolean
   turnsRemaining: number
-  progress: { current: number; total: number }
-  outcome?: ConversationMessage["outcome"]
-  revealHint?: boolean
   correction: Correction | null
   feedback: ConversationFeedback | null
 }

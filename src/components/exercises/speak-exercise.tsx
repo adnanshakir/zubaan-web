@@ -9,7 +9,7 @@ import { PhrasePractice } from "@/components/phrase-practice"
 interface SpeakExerciseProps {
   exercise: SpeakExercise
   sentence: Sentence
-  onResult: (correct: boolean) => void
+  onResult: (correct: boolean, verdict?: "said" | "close" | "missed") => void
   onSkip?: () => void
 }
 
@@ -53,7 +53,7 @@ export function SpeakExercise({ exercise, sentence, onResult, onSkip }: SpeakExe
       <PhrasePractice
         phrases={[{ id: sentence.id, text: sentence.text }]}
         player={player}
-        onVerdict={(_, verdict) => onResult(verdict !== "missed")}
+        onVerdict={(_, verdict) => onResult(verdict !== "missed", verdict)}
       />
       <Button
         variant="ghost"

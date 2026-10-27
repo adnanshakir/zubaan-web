@@ -4,9 +4,10 @@ import Link from "next/link"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { CheckIcon, FlameIcon, XIcon } from "lucide-react"
 import { useRouter } from "next/navigation"
-import type { Exercise, LessonDetail } from "@/lib/api/types"
+import type { AttemptResultRequest, Exercise, LessonDetail } from "@/lib/api/types"
 import { api, describeError } from "@/lib/api/client"
 import { haptic } from "@/lib/haptics"
+import { createAttemptSync } from "@/lib/attempt-sync"
 import {
   isCorrect,
   buildQueue,
@@ -80,6 +81,23 @@ function LessonPlayer({ id, lesson }: { id: string; lesson: LessonDetail }) {
   const [lastStreakEnded, setLastStreakEnded] = useState<number | null>(null)
   const skipRequested = useRef(false)
   const milestoneTimeout = useRef<number | null>(null)
+  const attemptId = useRef<string | null>(null)
+  const attemptSync = useRef<ReturnType<typeof createAttemptSync> | null>(null)
+
+  useEffect(() => {
+    let active = true
+    void api
+      .startAttempt(id)
+      .then((result) => {
+        if (!active) return
+        attemptId.current = result.attemptId
+        attemptSync.current = createAttemptSync(result.attemptId)
+      })
+      .catch(() => undefined)
+    return () => {
+      active = false
+    }
+  }, [id])
 
   const stage = lesson.stages[stageIndex]
   const item = plan.queue[0]
@@ -125,7 +143,12 @@ function LessonPlayer({ id, lesson }: { id: string; lesson: LessonDetail }) {
     setAnswer(value)
   }
 
-  function settle(correct: boolean, label?: string, skipFeedback = false) {
+  function settle(
+    correct: boolean,
+    label?: string,
+    skipFeedback = false,
+    verdict?: "said" | "close" | "missed",
+  ) {
     if (checked || !item) return
     if (!item.retried) {
       setResults((previous) => ({ ...previous, [item.exercise.id]: correct }))
@@ -150,6 +173,23 @@ function LessonPlayer({ id, lesson }: { id: string; lesson: LessonDetail }) {
     } else {
       setLastStreakEnded(null)
     }
+    const result: AttemptResultRequest["result"] = skipFeedback
+      ? "skipped"
+      : current?.type === "speak"
+        ? (verdict ?? (correct ? "said" : "missed"))
+        : correct
+          ? "correct"
+          : "wrong"
+    const payload: AttemptResultRequest = {
+      exerciseId: item.exercise.id,
+      result,
+      ...(current?.type === "order_words" && Array.isArray(answer) ? { answer } : {}),
+      ...(current?.type !== "order_words" && current?.type !== "speak" && typeof answer === "string"
+        ? { answer }
+        : {}),
+      ...(item.retried ? { retry: true } : {}),
+    }
+    attemptSync.current?.record(payload)
     if (skipFeedback) {
       continueExercise(correct)
       return
@@ -216,7 +256,13 @@ function LessonPlayer({ id, lesson }: { id: string; lesson: LessonDetail }) {
   async function startConversation() {
     setStarting(true)
     try {
-      const result = await api.startConversation(id)
+      await attemptSync.current?.flush()
+      if (attemptId.current) {
+        await api.completeAttempt(attemptId.current, { bestStreak })
+      }
+      const result = await api.startConversation(id, {
+        ...(attemptId.current ? { attemptId: attemptId.current } : {}),
+      })
       router.push(`/conversation/${result.conversationId}`)
     } catch (error) {
       notifyError(describeError(error))
@@ -224,10 +270,10 @@ function LessonPlayer({ id, lesson }: { id: string; lesson: LessonDetail }) {
     }
   }
 
-  const setResult = (correct: boolean, label?: string) => {
+  const setResult = (correct: boolean, label?: string, verdict?: "said" | "close" | "missed") => {
     const skipFeedback = skipRequested.current
     skipRequested.current = false
-    settle(correct, label, skipFeedback)
+    settle(correct, label, skipFeedback, verdict)
   }
 
   return (
@@ -447,7 +493,7 @@ function ExerciseView({
   value: Answer
   checked: boolean
   onChange: (value: string | string[]) => void
-  onResult: (correct: boolean, label?: string) => void
+  onResult: (correct: boolean, label?: string, verdict?: "said" | "close" | "missed") => void
   onSkip: () => void
 }) {
   switch (exercise.type) {

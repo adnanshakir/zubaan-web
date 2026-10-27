@@ -26,7 +26,7 @@ import type {
 import { turnSentence } from "@/lib/lesson-helpers"
 import { useAudioPlayer } from "@/hooks/use-audio-player"
 import { useWavRecorder } from "@/hooks/use-wav-recorder"
-import { TurnHint } from "@/components/turn-hint"
+import { HintPanel } from "@/components/hint-panel"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 
@@ -211,6 +211,13 @@ export default function ConversationView({ conversation, lesson }: ConversationV
   })
   const userCount = messages.filter((message) => message.role === "user").length
   const turnsLeft = Math.max(0, chat.turns.length - userCount)
+  const latestAiMessage = messages.findLast((message) => message.role === "ai")
+  const hintIndex = Math.min(
+    Math.max(progress.current > 0 ? progress.current - 1 : (latestAiMessage?.turnIndex ?? 0), 0),
+    Math.max(chat.turns.length - 1, 0),
+  )
+  const hintTurn = chat.turns[hintIndex]
+  const hintTurnKey = `${hintIndex}-${latestAiMessage?.key ?? "initial"}`
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" })
@@ -283,12 +290,9 @@ export default function ConversationView({ conversation, lesson }: ConversationV
           </div>
         </div>
       ) : null}
-      <div className="flex-1 overflow-y-auto px-5 py-4">
+      <div className="flex-1 overflow-y-auto px-5 pt-4 pb-8">
         <div className="flex flex-col gap-3">
           {messages.map((message, index) => {
-            const latestAiIndex = messages.findLastIndex(
-              (item) => item.role === "ai" && item.turnIndex >= 0,
-            )
             const nextUser = messages
               .slice(index + 1)
               .find((item) => item.role === "user" && item.turnIndex === message.turnIndex)
@@ -308,7 +312,6 @@ export default function ConversationView({ conversation, lesson }: ConversationV
                 message={message}
                 player={player}
                 turn={turn}
-                showHint={!ended && index === latestAiIndex}
                 targetOutcome={
                   !laterAiForTurn && nextUser?.outcome !== undefined ? nextUser.outcome : undefined
                 }
@@ -319,6 +322,15 @@ export default function ConversationView({ conversation, lesson }: ConversationV
         </div>
       </div>
       <div className="flex shrink-0 flex-col items-center gap-3 border-t border-border/60 bg-background px-5 pt-4 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+        {!ended && hintTurn ? (
+          <HintPanel
+            key={hintTurnKey}
+            hint={hintTurn.hint}
+            sentence={turnSentence(lesson, hintIndex)}
+            revealed={latestAiMessage?.revealHint ?? false}
+            turnKey={hintTurnKey}
+          />
+        ) : null}
         {ended ? (
           <>
             <Button asChild variant="indigo" className="w-full">
@@ -412,13 +424,11 @@ function MessageBubble({
   message,
   player,
   turn,
-  showHint,
   targetOutcome,
 }: {
   message: ChatMessage
   player: ReturnType<typeof useAudioPlayer>
   turn?: ChatTurn & { expect: string }
-  showHint: boolean
   targetOutcome?: ConversationMessage["outcome"]
 }) {
   const isPlaying = player.activeId === message.key
@@ -476,9 +486,7 @@ function MessageBubble({
           </p>
         )
       ) : null}
-      {message.role === "ai" && turn && showHint ? (
-        <TurnHint turn={turn} revealed={message.revealHint} />
-      ) : message.role === "ai" && turn && targetOutcome ? (
+      {message.role === "ai" && turn && targetOutcome ? (
         <p className="flex items-center gap-1 text-xs text-muted-foreground">
           {targetOutcome === "exact" ? (
             <CheckIcon className="size-3.5 text-emerald-400" />

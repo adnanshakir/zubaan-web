@@ -13,6 +13,8 @@ export type SttMode = "transcribe" | "verbatim" | "codemix" | "translit"
 export type SttProviderName = "sarvam"
 export type ConversationStatus = "active" | "completed" | "abandoned"
 export type MessageRole = "user" | "ai"
+export type LessonAttemptResultType = "correct" | "wrong" | "said" | "close" | "missed" | "skipped"
+export type MistakeKind = "grammar" | "tense" | "preposition" | "word_choice"
 
 export type SttLanguageCode =
   | "unknown"
@@ -51,6 +53,18 @@ export interface OnboardingRequest {
 
 export interface ConversationStartRequest {
   lessonId: string
+  attemptId?: string
+}
+
+export interface AttemptResultRequest {
+  exerciseId: string
+  result: LessonAttemptResultType
+  answer?: string | string[]
+  retry?: boolean
+}
+
+export interface AttemptCompleteRequest {
+  bestStreak: number // integer, 0–200
 }
 
 export interface ConversationTurnRequest {
@@ -134,6 +148,7 @@ export interface McqExercise {
   options: string[]
   correct: string
   explanation: string
+  mistakeType?: MistakeKind
 }
 export interface GapExercise {
   id: string
@@ -143,6 +158,7 @@ export interface GapExercise {
   options: string[]
   correct: string
   explanation: string
+  mistakeType?: MistakeKind
 }
 export interface ListenPickExercise {
   id: string
@@ -166,6 +182,7 @@ export interface OrderWordsExercise {
   answer: string
   extraWords?: string[]
   explanation: string
+  mistakeType?: MistakeKind
 }
 export interface SpeakExercise {
   id: string
@@ -190,6 +207,7 @@ export interface ChatTurn {
 
 export interface ConversationStartResponse {
   conversationId: string
+  attemptId: string | null
   status: ConversationStatus
   messages: ConversationMessage[]
   turnsRemaining: number
@@ -211,6 +229,7 @@ export interface ConversationTurnResponse {
 
 export interface ConversationEndResponse {
   conversationId: string
+  attemptId: string | null
   status: ConversationStatus
   durationSec: number
   userTurns: number
@@ -220,6 +239,7 @@ export interface ConversationEndResponse {
 export interface ConversationGetResponse {
   conversationId: string
   lessonId: string
+  attemptId: string | null
   status: ConversationStatus
   messages: ConversationMessage[]
   startedAt: string // ISO 8601
@@ -240,6 +260,28 @@ export interface ConversationMessage {
 }
 
 export type MistakeType = "grammar" | "tense" | "preposition" | "word_choice" | "other"
+
+export interface LessonAttemptResponse {
+  attemptId: string
+  lessonId: string
+  startedAt: string
+  completedAt: string | null
+  bestStreak: number
+  results: Array<{
+    exerciseId: string
+    stageId: "words" | "sentences"
+    type: string
+    result: LessonAttemptResultType
+    retryResult?: "correct" | "wrong"
+  }>
+  mistakes: Array<{
+    exerciseId: string
+    original: string
+    corrected: string
+    explanation: string
+    mistakeType: MistakeKind
+  }>
+}
 
 export interface Correction {
   corrected: string

@@ -98,6 +98,11 @@ Overview -> player (words, sentences) -> conversation -> summary.
 - **Inputs:** shadcn `Input` and `Textarea`, `rounded-xl`, indigo focus ring.
 - **Feedback:** `sonner` toasts for transient errors; inline text for
   section-level errors.
+- Wrong answers come back after at least 3 other exercises, or in a Quick
+  review round at the end of the stage.
+- **Streaks:** Counts first-try correct answers in a row, resets on a wrong
+  answer, and skips keep it. Milestones are at 3, 5, 8 and 12; use an
+  amber-400 flame.
 - **Haptics:** tap = every Button press and nav tap; select = choosing an
   option; success = onboarding done, conversation finished, a phrase said
   right; nudge = recording start/stop, a correction shown, a phrase "almost";

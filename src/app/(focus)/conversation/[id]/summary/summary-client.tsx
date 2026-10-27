@@ -1,14 +1,13 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
+import type { ReactNode } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { CheckIcon, CircleDotIcon, PencilLineIcon, XIcon } from "lucide-react"
+import { CheckIcon, FlameIcon, PencilLineIcon, XIcon } from "lucide-react"
 import { api, describeError } from "@/lib/api/client"
-import { turnSentence } from "@/lib/lesson-helpers"
-import { bestAttempt, phraseStatus, type PhraseStatus } from "@/lib/phrase-status"
-import { sessionScore, scoreLabel } from "@/lib/summary-score"
-import { matchSpeech, type MatchResult } from "@/lib/speech-match"
+import { summarize, lessonScore, type PhraseScore } from "@/lib/lesson-score"
+import { scoreLabel } from "@/lib/summary-score"
 import { haptic } from "@/lib/haptics"
 import { notifyError } from "@/lib/notify"
 import { useApi } from "@/hooks/use-api"
@@ -19,10 +18,6 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 
-function formatDuration(seconds: number): string {
-  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`
-}
-
 const CORRECTION_LABELS = {
   grammar: "Grammar",
   tense: "Tense",
@@ -31,69 +26,23 @@ const CORRECTION_LABELS = {
   other: "Other",
 } as const
 
-type PhraseAttempt = { match: MatchResult; text: string } | null
-
-function derivePhraseResults(
-  lesson: Awaited<ReturnType<typeof api.lesson>>,
-  userTurns: Awaited<ReturnType<typeof api.conversation>>["messages"],
-) {
-  if (lesson.chat.turns.length) {
-    const results = lesson.chat.turns.map((turn, turnIndex) => {
-      const phrase = turnSentence(lesson, turnIndex)
-      const attempts = userTurns.filter((message) => message.turnIndex === turnIndex)
-      const status = attempts.some((message) => message.outcome === "exact")
-        ? ("said" as const)
-        : attempts.some((message) => message.outcome === "close")
-          ? ("close" as const)
-          : ("none" as const)
-      let attempt: PhraseAttempt = null
-      for (const message of attempts) {
-        if (message.outcome === "exact" || message.outcome === "close") {
-          attempt = { match: matchSpeech(phrase, message.text), text: message.text }
-        }
-      }
-      return { phrase, status, attempt }
-    })
-    return {
-      statuses: results.map((result) => result.status),
-      phraseResults: results,
-      cleanTurns: userTurns.filter((message) => message.outcome === "exact").length,
-    }
-  }
-
-  const spoken = userTurns.map((message) => message.text)
-  const phrases = lesson.chat.turns.map((_, index) => turnSentence(lesson, index))
-  const statuses = phrases.map((phrase) => phraseStatus(phrase, spoken))
-  return {
-    statuses,
-    phraseResults: phrases.map((phrase, index) => ({
-      phrase,
-      status: statuses[index],
-      attempt: bestAttempt(phrase, spoken),
-    })),
-    cleanTurns: userTurns.filter((message) => !message.correction).length,
-  }
-}
-
 export default function SummaryClient({ id }: { id: string }) {
   const router = useRouter()
   const load = useCallback(async () => {
     const conversation = await api.conversation(id)
-    const lesson = await api.lesson(conversation.lessonId)
-    return { conversation, lesson }
+    const [lesson, attempt] = await Promise.all([
+      api.lesson(conversation.lessonId),
+      conversation.attemptId ? api.attempt(conversation.attemptId) : Promise.resolve(null),
+    ])
+    return { conversation, lesson, attempt }
   }, [id])
   const { data, error, loading, reload } = useApi(load)
   const [starting, setStarting] = useState(false)
 
   useEffect(() => {
     if (!data || data.conversation.status === "active") return
-    const userTurns = data.conversation.messages.filter((message) => message.role === "user")
-    const { statuses, cleanTurns } = derivePhraseResults(data.lesson, userTurns)
-    const score = sessionScore({
-      phrases: statuses,
-      userTurns: userTurns.length,
-      cleanTurns,
-    })
+    const summary = summarize(data.lesson, data.attempt, data.conversation)
+    const score = lessonScore(summary.input)
     if (score >= 65) haptic.success()
     else haptic.nudge()
   }, [data])
@@ -130,29 +79,34 @@ export default function SummaryClient({ id }: { id: string }) {
     )
   }
 
-  const userTurns = data.conversation.messages.filter((message) => message.role === "user")
-  const { statuses, phraseResults, cleanTurns } = derivePhraseResults(data.lesson, userTurns)
-  const score = sessionScore({
-    phrases: statuses,
-    userTurns: userTurns.length,
-    cleanTurns,
-  })
-  const corrections = userTurns.flatMap((message) =>
-    message.correction ? [{ original: message.text, ...message.correction }] : [],
-  )
-  const correctionCounts = corrections.reduce<Record<string, number>>((counts, correction) => {
-    counts[correction.type] = (counts[correction.type] ?? 0) + 1
-    return counts
-  }, {})
-  const mostCommonCorrection = corrections.length
-    ? corrections.reduce((best, correction) =>
-        correctionCounts[correction.type] > correctionCounts[best.type] ? correction : best,
-      )
-    : null
-  const said = statuses.filter((status) => status === "said").length
+  const summary = summarize(data.lesson, data.attempt, data.conversation)
+  const score = lessonScore(summary.input)
   const lessonId = data.conversation.lessonId
+  const phraseCount = summary.perPhrase.filter((phrase) => phrase.outcome === "exact").length
+  const chatCorrections = data.conversation.messages.flatMap((message) =>
+    message.correction
+      ? [{ original: message.text, ...message.correction, source: "chat" as const }]
+      : [],
+  )
+  const exerciseCorrections =
+    data.attempt?.mistakes.map((mistake) => ({
+      original: mistake.original,
+      corrected: mistake.corrected,
+      explanation: mistake.explanation,
+      type: mistake.mistakeType,
+      source: "exercise" as const,
+    })) ?? []
+  const mistakes = [...exerciseCorrections, ...chatCorrections]
+  const counts = mistakes.reduce<Record<string, number>>((result, mistake) => {
+    result[mistake.type] = (result[mistake.type] ?? 0) + 1
+    return result
+  }, {})
+  const mostCommon = mistakes.reduce<(typeof mistakes)[number] | null>(
+    (best, mistake) => (!best || counts[mistake.type] > counts[best.type] ? mistake : best),
+    null,
+  )
 
-  async function practiceAgain() {
+  async function chatAgain() {
     setStarting(true)
     try {
       const result = await api.startConversation(lessonId)
@@ -171,58 +125,86 @@ export default function SummaryClient({ id }: { id: string }) {
           <ScoreRing score={score} label={scoreLabel(score)} />
         </div>
         <p className="mt-3 text-sm text-muted-foreground">
-          {said} of {phraseResults.length} phrases said
+          {phraseCount} of {summary.perPhrase.length} phrases said in the conversation
         </p>
       </div>
 
       <div className="mt-8 grid grid-cols-3 gap-3">
-        <Stat value={userTurns.length} label="Turns" />
-        <Stat value={corrections.length} label="Corrections" />
+        <Stat
+          value={data.attempt ? `${summary.firstTryCorrect}/${summary.firstTryTotal}` : "-"}
+          label="First try"
+        />
+        <Stat value={summary.skipped} label="Skipped" />
         <Stat
           value={
-            data.conversation.durationSec === undefined
-              ? "-"
-              : formatDuration(data.conversation.durationSec)
+            data.attempt ? (
+              <span className="flex items-center gap-1">
+                <FlameIcon className="size-4 text-amber-400" />
+                {data.attempt.bestStreak}
+              </span>
+            ) : (
+              "-"
+            )
           }
-          label="Time"
+          label="Best streak"
         />
       </div>
 
       <section className="mt-8">
+        <h2 className="text-lg font-medium">How you did</h2>
+        <Card className="mt-3 flex flex-col gap-4 rounded-2xl p-4 shadow-none">
+          {(
+            [
+              ["Words", summary.input.words],
+              ["Sentences", summary.input.sentences],
+              ["Speaking", summary.input.speaking],
+              ["Conversation", summary.input.chat],
+            ] as const
+          ).map(([label, component]) =>
+            component && component.possible > 0 ? (
+              <ScoreRow key={label} label={label} component={component} />
+            ) : null,
+          )}
+          {!data.attempt ? (
+            <p className="text-xs text-muted-foreground">
+              You skipped the exercises, so this score is for the conversation only.
+            </p>
+          ) : null}
+        </Card>
+      </section>
+
+      <section className="mt-8">
         <h2 className="text-lg font-medium">Phrases</h2>
         <div className="mt-3 flex flex-col gap-3">
-          {phraseResults.map(({ phrase, status, attempt }) => (
-            <PhraseCard key={phrase} phrase={phrase} status={status} attempt={attempt} />
+          {summary.perPhrase.map((phrase, index) => (
+            <PhraseCard key={`${phrase.phrase}-${index}`} phrase={phrase} />
           ))}
         </div>
-        <p className="mt-2 text-xs text-muted-foreground">
-          Almost means the words were close but the ending or a small word was off.
-        </p>
       </section>
 
       <section className="mt-8">
         <h2 className="text-lg font-medium">Work on this</h2>
-        {corrections.length === 0 ? (
+        {mistakes.length === 0 ? (
           <p className="mt-3 flex items-center gap-1 text-sm text-emerald-400">
             <CheckIcon className="size-4" />
-            No corrections. Nice work.
+            No mistakes. Nice work.
           </p>
         ) : (
           <>
             <p className="mt-3 text-sm">
-              Most corrections: {CORRECTION_LABELS[mostCommonCorrection?.type ?? "other"]} (
-              {mostCommonCorrection ? correctionCounts[mostCommonCorrection.type] : 0})
+              Most mistakes: {CORRECTION_LABELS[mostCommon?.type ?? "other"]} (
+              {mostCommon ? counts[mostCommon.type] : 0})
             </p>
             <div className="mt-3 flex flex-col gap-3">
-              {corrections.map((correction, index) => (
-                <div key={`${correction.original}-${index}`} className="flex gap-2">
+              {mistakes.map((mistake, index) => (
+                <div key={`${mistake.original}-${index}`} className="flex gap-2">
                   <PencilLineIcon className="mt-0.5 size-4 shrink-0 text-amber-400" />
                   <div className="flex min-w-0 flex-col gap-1">
                     <p className="text-sm break-words text-muted-foreground line-through">
-                      {correction.original}
+                      {mistake.original}
                     </p>
-                    <p className="text-sm font-medium break-words">{correction.corrected}</p>
-                    <p className="text-xs text-muted-foreground">{correction.explanation}</p>
+                    <p className="text-sm font-medium break-words">{mistake.corrected}</p>
+                    <p className="text-xs text-muted-foreground">{mistake.explanation}</p>
                   </div>
                 </div>
               ))}
@@ -235,15 +217,18 @@ export default function SummaryClient({ id }: { id: string }) {
       </section>
 
       <div className="mt-auto flex flex-col gap-2 pt-8">
+        <Button asChild variant="indigo" className="w-full">
+          <Link href={`/lessons/${lessonId}/play`}>Practice again</Link>
+        </Button>
         <Button
-          variant="indigo"
+          variant="outline"
           className="w-full"
           loading={starting}
-          onClick={() => void practiceAgain()}
+          onClick={() => void chatAgain()}
         >
-          Practice again
+          Chat again
         </Button>
-        <Button asChild variant="outline" className="w-full">
+        <Button asChild variant="ghost" className="w-full">
           <Link href="/lessons">Back to lessons</Link>
         </Button>
       </div>
@@ -251,7 +236,7 @@ export default function SummaryClient({ id }: { id: string }) {
   )
 }
 
-function Stat({ value, label }: { value: number | string; label: string }) {
+function Stat({ value, label }: { value: number | string | ReactNode; label: string }) {
   return (
     <Card className="rounded-2xl p-4 shadow-none">
       <div className="flex flex-col">
@@ -262,36 +247,65 @@ function Stat({ value, label }: { value: number | string; label: string }) {
   )
 }
 
-function PhraseCard({
-  phrase,
-  status,
-  attempt,
+function ScoreRow({
+  label,
+  component,
 }: {
-  phrase: string
-  status: PhraseStatus
-  attempt: ReturnType<typeof bestAttempt>
+  label: string
+  component: { earned: number; possible: number }
 }) {
-  const Icon = status === "said" ? CheckIcon : status === "close" ? CircleDotIcon : XIcon
-  const color =
-    status === "said" ? "text-emerald-400" : status === "close" ? "text-amber-400" : "text-rose-400"
+  const earned = Number.isInteger(component.earned) ? component.earned : component.earned.toFixed(1)
+  return (
+    <div>
+      <div className="flex justify-between text-sm">
+        <span>{label}</span>
+        <span className="text-muted-foreground">
+          {earned} of {component.possible}
+        </span>
+      </div>
+      <div className="mt-2 h-1.5 rounded-full bg-muted">
+        <div
+          className="h-1.5 rounded-full bg-indigo-500"
+          style={{ width: `${(component.earned / component.possible) * 100}%` }}
+        />
+      </div>
+    </div>
+  )
+}
+
+function PhraseCard({ phrase }: { phrase: PhraseScore }) {
+  const status =
+    phrase.outcome === "exact"
+      ? { label: "Said", color: "text-emerald-400", icon: CheckIcon, wordStatus: "match" as const }
+      : phrase.outcome === "close"
+        ? {
+            label: "Almost",
+            color: "text-amber-400",
+            icon: CheckIcon,
+            wordStatus: "close" as const,
+          }
+        : { label: "Not said", color: "text-rose-400", icon: XIcon, wordStatus: "missed" as const }
+  const Icon = status.icon
   return (
     <Card className="rounded-2xl p-4 shadow-none">
       <div className="flex items-center gap-2">
-        <Icon className={`size-4 ${color}`} />
-        <span className={`text-sm font-medium ${color}`}>
-          {status === "said" ? "Said" : status === "close" ? "Almost" : "Not said"}
-        </span>
+        <Icon className={`size-4 ${status.color}`} />
+        <span className={`text-sm font-medium ${status.color}`}>{status.label}</span>
       </div>
-      {status === "none" ? (
-        <p className="mt-3 text-base text-rose-400">{phrase}</p>
-      ) : attempt ? (
+      {phrase.text ? (
         <>
           <div className="mt-3">
-            <ColoredSentence words={attempt.match.words} />
+            <ColoredSentence
+              words={phrase.phrase
+                .split(" ")
+                .map((text) => ({ text, status: status.wordStatus, heard: null }))}
+            />
           </div>
-          <p className="mt-1 text-xs text-muted-foreground">You said: &quot;{attempt.text}&quot;</p>
+          <p className="mt-1 text-xs text-muted-foreground">You said: &quot;{phrase.text}&quot;</p>
         </>
-      ) : null}
+      ) : (
+        <p className="mt-3 text-base text-rose-400">{phrase.phrase}</p>
+      )}
     </Card>
   )
 }

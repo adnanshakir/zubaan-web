@@ -84,6 +84,14 @@ A floating island pill, fixed bottom center:
 
 Overview -> player (words, sentences) -> conversation -> summary.
 
+## Lesson summary
+
+The lesson score weighs words (14%), sentences (25%), speaking (21%) and
+conversation (40%); close conversation phrases earn 0.7 credit. The summary
+cards show first-try results, skipped items and the best streak. The summary
+reads the saved lesson attempt together with the conversation outcome, so it
+remains stable after the lesson ends.
+
 ## Components
 
 - **Buttons:** always `Button` from `@/components/ui/button`. It is our custom

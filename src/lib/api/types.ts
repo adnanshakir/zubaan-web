@@ -13,6 +13,8 @@ export type SttMode = "transcribe" | "verbatim" | "codemix" | "translit"
 export type SttProviderName = "sarvam"
 export type ConversationStatus = "active" | "completed" | "abandoned"
 export type MessageRole = "user" | "ai"
+export type LessonAttemptResultType = "correct" | "wrong" | "said" | "close" | "missed" | "skipped"
+export type MistakeKind = "grammar" | "tense" | "preposition" | "word_choice"
 
 export type SttLanguageCode =
   | "unknown"
@@ -51,6 +53,18 @@ export interface OnboardingRequest {
 
 export interface ConversationStartRequest {
   lessonId: string
+  attemptId?: string
+}
+
+export interface AttemptResultRequest {
+  exerciseId: string
+  result: LessonAttemptResultType
+  answer?: string | string[]
+  retry?: boolean
+}
+
+export interface AttemptCompleteRequest {
+  bestStreak: number // integer, 0–200
 }
 
 export interface ConversationTurnRequest {
@@ -93,41 +107,115 @@ export interface LessonListItem {
   level: Level
   objective: string
   estimatedMinutes: number
+  sentenceCount: number
+  exerciseCount: number
 }
 
 export interface LessonDetail extends LessonListItem {
-  steps: LessonStep[]
+  sentences: Sentence[]
+  stages: Stage[]
+  chat: Chat
 }
 
-export interface LessonStep {
-  order: number
-  type: "learn" | "repeat" | "roleplay"
-  phrases?: LessonPhrase[]
-  phraseIndexes?: number[]
-  roleplay?: RoleplayStep
-}
-
-export interface LessonPhrase {
+export interface Sentence {
+  id: string
   text: string
-  hints: Partial<Record<Language, string>>
-  tip?: string | null
+  hi: string
+  tip: string
+  chunks: string[]
 }
 
-export interface RoleplayStep {
+export interface Stage {
+  id: "words" | "sentences"
+  title: string
+  intro: string
+  exercises: Exercise[]
+}
+
+export type Exercise =
+  | McqExercise
+  | GapExercise
+  | ListenPickExercise
+  | MatchPairsExercise
+  | OrderWordsExercise
+  | SpeakExercise
+
+export interface McqExercise {
+  id: string
+  type: "mcq"
+  prompt: string
+  promptHi?: string
+  options: string[]
+  correct: string
+  explanation: string
+  mistakeType?: MistakeKind
+}
+export interface GapExercise {
+  id: string
+  type: "gap"
+  sentence: string
+  hi: string
+  options: string[]
+  correct: string
+  explanation: string
+  mistakeType?: MistakeKind
+}
+export interface ListenPickExercise {
+  id: string
+  type: "listen_pick"
+  prompt: string
+  text: string
+  options: string[]
+  correct: string
+  explanation: string
+}
+export interface MatchPairsExercise {
+  id: string
+  type: "match_pairs"
+  prompt: string
+  pairs: { en: string; hi: string }[]
+}
+export interface OrderWordsExercise {
+  id: string
+  type: "order_words"
+  promptHi: string
+  answer: string
+  extraWords?: string[]
+  explanation: string
+  mistakeType?: MistakeKind
+}
+export interface SpeakExercise {
+  id: string
+  type: "speak"
+  sentenceId: string
+}
+
+export interface Chat {
   aiRole: string
   userRole: string
   situation: string
   goal: string
-  openingLine: string
-  maxTurns: number
-  targetPhrases: string[]
+  turns: ChatTurn[]
+  closingLine: string
+}
+
+export interface ChatTurn {
+  ai: string
+  sentenceId: string
+  hint: { en: string; hi: string }
 }
 
 export interface ConversationStartResponse {
   conversationId: string
+  attemptId: string | null
   status: ConversationStatus
   messages: ConversationMessage[]
   turnsRemaining: number
+  progress: { current: number; total: number }
+  hasMistake: boolean
+  corrected: string
+  explanation: string
+  mistakeType: MistakeType
 }
 
 export interface ConversationTurnResponse {
@@ -141,6 +229,7 @@ export interface ConversationTurnResponse {
 
 export interface ConversationEndResponse {
   conversationId: string
+  attemptId: string | null
   status: ConversationStatus
   durationSec: number
   userTurns: number
@@ -150,6 +239,7 @@ export interface ConversationEndResponse {
 export interface ConversationGetResponse {
   conversationId: string
   lessonId: string
+  attemptId: string | null
   status: ConversationStatus
   messages: ConversationMessage[]
   startedAt: string // ISO 8601
@@ -163,10 +253,35 @@ export interface ConversationMessage {
   text: string
   audioUrl: string | null
   correction?: Correction | null // user messages only
+  turnIndex: number
+  outcome?: "exact" | "close" | "off" | "moved_on" // user messages only
+  revealHint?: boolean // AI messages only
   createdAt: string // ISO 8601
 }
 
 export type MistakeType = "grammar" | "tense" | "preposition" | "word_choice" | "other"
+
+export interface LessonAttemptResponse {
+  attemptId: string
+  lessonId: string
+  startedAt: string
+  completedAt: string | null
+  bestStreak: number
+  results: Array<{
+    exerciseId: string
+    stageId: "words" | "sentences"
+    type: string
+    result: LessonAttemptResultType
+    retryResult?: "correct" | "wrong"
+  }>
+  mistakes: Array<{
+    exerciseId: string
+    original: string
+    corrected: string
+    explanation: string
+    mistakeType: MistakeKind
+  }>
+}
 
 export interface Correction {
   corrected: string

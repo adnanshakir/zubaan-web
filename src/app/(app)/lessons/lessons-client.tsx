@@ -74,6 +74,7 @@ export default function LessonsClient() {
                     <Badge variant="secondary">{capitalize(lesson.category)}</Badge>
                     <Badge variant="outline">{capitalize(lesson.level)}</Badge>
                     <span className="text-xs text-muted-foreground">
+                      {lesson.sentenceCount} sentences · {lesson.exerciseCount} exercises ·{" "}
                       {lesson.estimatedMinutes} min
                     </span>
                   </div>

@@ -1,12 +1,10 @@
 "use client"
 
 import { useCallback } from "react"
-import Link from "next/link"
 import { api } from "@/lib/api/client"
 import { useApi } from "@/hooks/use-api"
 import { ErrorCard } from "@/components/error-card"
 import ConversationView from "./conversation-view"
-import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 
 export default function ConversationClient({ id }: { id: string }) {
@@ -38,19 +36,5 @@ export default function ConversationClient({ id }: { id: string }) {
 
   if (!data) return null
 
-  const roleplay = data.lesson.steps.find((step) => step.type === "roleplay")?.roleplay
-  if (!roleplay) {
-    return (
-      <div className="mx-auto flex max-w-md flex-col items-start gap-4 px-5 py-8">
-        <p className="text-sm text-muted-foreground">This lesson has no conversation.</p>
-        <Button asChild variant="indigo">
-          <Link href="/lessons">Back to lessons</Link>
-        </Button>
-      </div>
-    )
-  }
-
-  return (
-    <ConversationView conversation={data.conversation} lesson={data.lesson} roleplay={roleplay} />
-  )
+  return <ConversationView conversation={data.conversation} lesson={data.lesson} />
 }

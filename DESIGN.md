@@ -80,6 +80,18 @@ A floating island pill, fixed bottom center:
 - Hidden on the conversation screen, which has its own header with a back
   button. Add safe-area padding (`pb-[env(safe-area-inset-bottom)]`).
 
+## Lesson flow
+
+Overview -> player (words, sentences) -> conversation -> summary.
+
+## Lesson summary
+
+The lesson score weighs words (14%), sentences (25%), speaking (21%) and
+conversation (40%); close conversation phrases earn 0.7 credit. The summary
+cards show first-try results, skipped items and the best streak. The summary
+reads the saved lesson attempt together with the conversation outcome, so it
+remains stable after the lesson ends.
+
 ## Components
 
 - **Buttons:** always `Button` from `@/components/ui/button`. It is our custom
@@ -94,6 +106,11 @@ A floating island pill, fixed bottom center:
 - **Inputs:** shadcn `Input` and `Textarea`, `rounded-xl`, indigo focus ring.
 - **Feedback:** `sonner` toasts for transient errors; inline text for
   section-level errors.
+- Wrong answers come back after at least 3 other exercises, or in a Quick
+  review round at the end of the stage.
+- **Streaks:** Counts first-try correct answers in a row, resets on a wrong
+  answer, and skips keep it. Milestones are at 3, 5, 8 and 12; use an
+  amber-400 flame.
 - **Haptics:** tap = every Button press and nav tap; select = choosing an
   option; success = onboarding done, conversation finished, a phrase said
   right; nudge = recording start/stop, a correction shown, a phrase "almost";

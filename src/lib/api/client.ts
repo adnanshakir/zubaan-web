@@ -5,6 +5,8 @@
 
 import type {
   ApiErrorResponse,
+  AttemptCompleteRequest,
+  AttemptResultRequest,
   ConversationEndResponse,
   ConversationGetResponse,
   ConversationStartResponse,
@@ -14,6 +16,7 @@ import type {
   LessonCategory,
   LessonDetail,
   LessonListItem,
+  LessonAttemptResponse,
   Level,
   MistakesListResponse,
   MistakesSummaryResponse,
@@ -149,8 +152,19 @@ export const api = {
 
   lesson: (id: string) => request<LessonDetail>(`/api/lessons/${id}`),
 
-  startConversation: (lessonId: string) =>
-    request<ConversationStartResponse>("/api/conversations", post({ lessonId })),
+  startAttempt: (lessonId: string) =>
+    request<{ attemptId: string }>("/api/attempts", post({ lessonId })),
+
+  recordResult: (attemptId: string, body: AttemptResultRequest) =>
+    request<void>(`/api/attempts/${attemptId}/results`, post(body)),
+
+  completeAttempt: (attemptId: string, body: AttemptCompleteRequest) =>
+    request<LessonAttemptResponse>(`/api/attempts/${attemptId}/complete`, post(body)),
+
+  attempt: (attemptId: string) => request<LessonAttemptResponse>(`/api/attempts/${attemptId}`),
+
+  startConversation: (lessonId: string, options: { attemptId?: string } = {}) =>
+    request<ConversationStartResponse>("/api/conversations", post({ lessonId, ...options })),
 
   takeTurn: (conversationId: string, text: string) =>
     request<ConversationTurnResponse>(`/api/conversations/${conversationId}/turns`, post({ text })),

@@ -211,11 +211,6 @@ export interface ConversationStartResponse {
   status: ConversationStatus
   messages: ConversationMessage[]
   turnsRemaining: number
-  progress: { current: number; total: number }
-  hasMistake: boolean
-  corrected: string
-  explanation: string
-  mistakeType: MistakeType
 }
 
 export interface ConversationTurnResponse {
@@ -223,6 +218,11 @@ export interface ConversationTurnResponse {
   audioUrl: string | null
   endConversation: boolean
   turnsRemaining: number
+  progress: { current: number; total: number }
+  hasMistake: boolean
+  corrected: string
+  explanation: string
+  mistakeType: MistakeType
   correction: Correction | null
   feedback: ConversationFeedback | null
 }

@@ -11,6 +11,7 @@ interface OrderWordsExerciseProps {
   value: string[]
   onChange: (value: string[]) => void
   disabled?: boolean
+  checked?: boolean
 }
 
 export function OrderWordsExercise({
@@ -18,6 +19,7 @@ export function OrderWordsExercise({
   value,
   onChange,
   disabled = false,
+  checked = false,
 }: OrderWordsExerciseProps) {
   const [tiles] = useState(() => shuffle(buildTiles(exercise.answer, exercise.extraWords)))
   const [selected, setSelected] = useState<number[]>([])
@@ -38,13 +40,23 @@ export function OrderWordsExercise({
 
   const selectedWords =
     value.length === selected.length ? value : selected.map((tileIndex) => tiles[tileIndex].label)
+  const allCorrect =
+    selectedWords.length === exercise.answer.length &&
+    selectedWords.every((word, index) => word === exercise.answer[index])
 
   return (
     <div className="flex flex-col gap-6">
       <p className="text-sm text-muted-foreground" lang="hi">
         {exercise.promptHi}
       </p>
-      <div className="flex min-h-14 flex-wrap items-center gap-2 border-b border-border pb-3">
+      <div
+        className={cn(
+          "flex min-h-14 flex-wrap items-center gap-2 border-b pb-3",
+          !checked && "border-border",
+          checked && allCorrect && "border-emerald-400",
+          checked && !allCorrect && "border-rose-400",
+        )}
+      >
         {selected.map((tileIndex, answerIndex) => (
           <Button
             key={tileIndex}
@@ -52,7 +64,13 @@ export function OrderWordsExercise({
             radius="full"
             disabled={disabled}
             haptic={false}
-            className="border-indigo-400 bg-indigo-400/10"
+            className={cn(
+              !checked && "border-indigo-400 bg-indigo-400/10",
+              checked &&
+                (selectedWords[answerIndex] === exercise.answer[answerIndex]
+                  ? "border-emerald-400 bg-emerald-400/10"
+                  : "border-rose-400 bg-rose-400/10"),
+            )}
             onClick={() => remove(tileIndex)}
           >
             {selectedWords[answerIndex]}

@@ -7,9 +7,16 @@ interface GapExerciseProps {
   value: string | null
   onChange: (value: string) => void
   disabled?: boolean
+  checked?: boolean
 }
 
-export function GapExercise({ exercise, value, onChange, disabled = false }: GapExerciseProps) {
+export function GapExercise({
+  exercise,
+  value,
+  onChange,
+  disabled = false,
+  checked = false,
+}: GapExerciseProps) {
   const parts = exercise.sentence.split("___")
   return (
     <div className="flex flex-col gap-6">
@@ -33,7 +40,14 @@ export function GapExercise({ exercise, value, onChange, disabled = false }: Gap
             radius="full"
             disabled={disabled}
             haptic={false}
-            className={cn(value === option && "border-indigo-400 bg-indigo-400/10")}
+            className={cn(
+              !checked && value === option && "border-indigo-400 bg-indigo-400/10",
+              checked && option === exercise.correct && "border-emerald-400 bg-emerald-400/10",
+              checked && value === option && option !== exercise.correct
+                ? "border-rose-400 bg-rose-400/10"
+                : null,
+              checked && option !== value && option !== exercise.correct && "opacity-60",
+            )}
             onClick={() => onChange(option)}
           >
             {option}

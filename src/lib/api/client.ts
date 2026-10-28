@@ -92,7 +92,7 @@ export function describeError(error: unknown): string {
       return "The AI service didn't respond. Try again."
     default:
       // 400 and 404 messages from the backend are already readable.
-      return error.message
+      return error.message.trim() || "Something went wrong. Please try again."
   }
 }
 
@@ -153,7 +153,7 @@ export const api = {
   lesson: (id: string) => request<LessonDetail>(`/api/lessons/${id}`),
 
   startAttempt: (lessonId: string) =>
-    request<{ attemptId: string }>("/api/attempts", post({ lessonId })),
+    request<{ attemptId: string }>(`/api/lessons/${lessonId}/attempts`, { method: "POST" }),
 
   recordResult: (attemptId: string, body: AttemptResultRequest) =>
     request<void>(`/api/attempts/${attemptId}/results`, post(body)),

@@ -13,6 +13,7 @@ interface ListenPickExerciseProps {
   value: string | null
   onChange: (value: string) => void
   disabled?: boolean
+  checked?: boolean
 }
 
 export function ListenPickExercise({
@@ -20,6 +21,7 @@ export function ListenPickExercise({
   value,
   onChange,
   disabled = false,
+  checked = false,
 }: ListenPickExerciseProps) {
   const player = usePhrasePlayer()
   const [options] = useState(() => shuffle(exercise.options))
@@ -63,7 +65,12 @@ export function ListenPickExercise({
             haptic={false}
             className={cn(
               "h-auto justify-start p-4 text-left whitespace-normal",
-              value === option && "border-indigo-400 bg-indigo-400/10",
+              !checked && value === option && "border-indigo-400 bg-indigo-400/10",
+              checked && option === exercise.correct && "border-emerald-400 bg-emerald-400/10",
+              checked && value === option && option !== exercise.correct
+                ? "border-rose-400 bg-rose-400/10"
+                : null,
+              checked && option !== value && option !== exercise.correct && "opacity-60",
             )}
             onClick={() => onChange(option)}
           >

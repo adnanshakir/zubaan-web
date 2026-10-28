@@ -97,6 +97,7 @@ function LessonPlayer({ id, lesson }: { id: string; lesson: LessonDetail }) {
     pendingAttempt.current = creation
     attemptSync.current = createAttemptSync(creation)
     void creation.catch(() => {
+      console.warn("Could not start lesson attempt")
       if (pendingAttempt.current === creation) {
         pendingAttempt.current = null
         attemptSync.current = null
@@ -273,20 +274,38 @@ function LessonPlayer({ id, lesson }: { id: string; lesson: LessonDetail }) {
         pendingAttempt.current = creation
         attemptSync.current = createAttemptSync(creation)
         void creation.catch(() => {
+          console.warn("Could not start lesson attempt")
           if (pendingAttempt.current === creation) {
             pendingAttempt.current = null
             attemptSync.current = null
           }
         })
       }
-      await attemptSync.current?.flush()
-      if (attemptId.current && !attemptCompleted.current) {
-        await api.completeAttempt(attemptId.current, { bestStreak })
-        attemptCompleted.current = true
+      let attemptFailed = !attemptSync.current
+      try {
+        await Promise.race([
+          attemptSync.current?.flush(),
+          new Promise<never>((_, reject) =>
+            window.setTimeout(() => reject(new Error("Attempt sync timed out")), 3000),
+          ),
+        ])
+      } catch (error) {
+        attemptFailed = true
+        console.warn("Could not sync lesson attempt", error)
       }
-      const result = await api.startConversation(id, {
-        ...(attemptId.current ? { attemptId: attemptId.current } : {}),
-      })
+      if (!attemptFailed && attemptId.current && !attemptCompleted.current) {
+        try {
+          await api.completeAttempt(attemptId.current, { bestStreak })
+          attemptCompleted.current = true
+        } catch (error) {
+          attemptFailed = true
+          console.warn("Could not complete lesson attempt", error)
+        }
+      }
+      const result = await api.startConversation(
+        id,
+        !attemptFailed && attemptId.current ? { attemptId: attemptId.current } : {},
+      )
       router.push(`/conversation/${result.conversationId}`)
     } catch (error) {
       notifyError(describeError(error))
@@ -302,7 +321,7 @@ function LessonPlayer({ id, lesson }: { id: string; lesson: LessonDetail }) {
 
   return (
     <div className="min-h-dvh bg-background">
-      <header className="mx-auto flex w-full max-w-md flex-col gap-3 px-5 pt-5">
+      <header className="relative mx-auto flex w-full max-w-md flex-col gap-3 px-5 pt-5">
         <div className="flex items-center gap-3">
           <Button
             variant="ghost"
@@ -328,6 +347,13 @@ function LessonPlayer({ id, lesson }: { id: string; lesson: LessonDetail }) {
             </div>
           ) : null}
         </div>
+        {milestone ? (
+          <div className="pointer-events-none absolute inset-x-0 top-12 z-20 flex justify-center">
+            <div className="rounded-full border border-amber-400/30 bg-amber-400/10 px-4 py-2 text-sm font-medium text-amber-400">
+              {milestone}
+            </div>
+          </div>
+        ) : null}
         {leaving ? (
           <div className="flex animate-in items-center justify-between rounded-xl border border-border px-3 py-2 text-sm duration-200 fade-in-0 slide-in-from-top-1">
             <span>Leave this lesson?</span>
@@ -431,14 +457,6 @@ function LessonPlayer({ id, lesson }: { id: string; lesson: LessonDetail }) {
         ) : null}
       </main>
 
-      {milestone ? (
-        <div className="pointer-events-none fixed inset-x-0 bottom-24 z-10 flex justify-center">
-          <div className="rounded-full border border-amber-400/30 bg-amber-400/10 px-4 py-2 text-sm font-medium text-amber-400">
-            {milestone}
-          </div>
-        </div>
-      ) : null}
-
       {phase === "exercise" &&
       current &&
       current.type !== "match_pairs" &&
@@ -463,8 +481,8 @@ function LessonPlayer({ id, lesson }: { id: string; lesson: LessonDetail }) {
           className={cn(
             "fixed inset-x-0 bottom-0 animate-in border-t px-5 pt-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] duration-200 slide-in-from-bottom-2",
             lastCorrect
-              ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-400"
-              : "border-rose-400/30 bg-rose-400/10 text-rose-400",
+              ? "border-emerald-400 bg-emerald-400/10 text-emerald-400"
+              : "border-rose-400 bg-rose-400/10 text-rose-400",
           )}
         >
           <div className="mx-auto flex max-w-md flex-col gap-3">
@@ -527,6 +545,7 @@ function ExerciseView({
           exercise={exercise}
           value={typeof value === "string" ? value : null}
           onChange={onChange}
+          checked={checked}
           disabled={checked}
         />
       )
@@ -536,6 +555,7 @@ function ExerciseView({
           exercise={exercise}
           value={typeof value === "string" ? value : null}
           onChange={onChange}
+          checked={checked}
           disabled={checked}
         />
       )
@@ -545,6 +565,7 @@ function ExerciseView({
           exercise={exercise}
           value={typeof value === "string" ? value : null}
           onChange={onChange}
+          checked={checked}
           disabled={checked}
         />
       )
@@ -556,6 +577,7 @@ function ExerciseView({
           exercise={exercise}
           value={Array.isArray(value) ? value : []}
           onChange={onChange}
+          checked={checked}
           disabled={checked}
         />
       )

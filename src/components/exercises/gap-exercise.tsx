@@ -1,5 +1,3 @@
-"use client"
-
 import type { GapExercise } from "@/lib/api/types"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"

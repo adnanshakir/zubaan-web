@@ -82,18 +82,26 @@ function LessonPlayer({ id, lesson }: { id: string; lesson: LessonDetail }) {
   const skipRequested = useRef(false)
   const milestoneTimeout = useRef<number | null>(null)
   const attemptId = useRef<string | null>(null)
+  const attemptCompleted = useRef(false)
+  const pendingAttempt = useRef<Promise<string> | null>(null)
   const attemptSync = useRef<ReturnType<typeof createAttemptSync> | null>(null)
 
   useEffect(() => {
     let active = true
-    void api
-      .startAttempt(id)
-      .then((result) => {
-        if (!active) return
+    const creation = api.startAttempt(id).then((result) => {
+      if (active) {
         attemptId.current = result.attemptId
-        attemptSync.current = createAttemptSync(result.attemptId)
-      })
-      .catch(() => undefined)
+      }
+      return result.attemptId
+    })
+    pendingAttempt.current = creation
+    attemptSync.current = createAttemptSync(creation)
+    void creation.catch(() => {
+      if (pendingAttempt.current === creation) {
+        pendingAttempt.current = null
+        attemptSync.current = null
+      }
+    })
     return () => {
       active = false
     }
@@ -163,7 +171,7 @@ function LessonPlayer({ id, lesson }: { id: string; lesson: LessonDetail }) {
       const message = streakMilestone(nextStreak)
       if (message) {
         setMilestone(message)
-        if (streak === 3) haptic.nudge()
+        if (nextStreak === 3) haptic.nudge()
         else haptic.success()
         if (milestoneTimeout.current !== null) {
           window.clearTimeout(milestoneTimeout.current)
@@ -256,9 +264,25 @@ function LessonPlayer({ id, lesson }: { id: string; lesson: LessonDetail }) {
   async function startConversation() {
     setStarting(true)
     try {
+      if (!pendingAttempt.current) {
+        const creation = api.startAttempt(id).then((result) => {
+          attemptId.current = result.attemptId
+          attemptSync.current = createAttemptSync(result.attemptId)
+          return result.attemptId
+        })
+        pendingAttempt.current = creation
+        attemptSync.current = createAttemptSync(creation)
+        void creation.catch(() => {
+          if (pendingAttempt.current === creation) {
+            pendingAttempt.current = null
+            attemptSync.current = null
+          }
+        })
+      }
       await attemptSync.current?.flush()
-      if (attemptId.current) {
+      if (attemptId.current && !attemptCompleted.current) {
         await api.completeAttempt(attemptId.current, { bestStreak })
+        attemptCompleted.current = true
       }
       const result = await api.startConversation(id, {
         ...(attemptId.current ? { attemptId: attemptId.current } : {}),

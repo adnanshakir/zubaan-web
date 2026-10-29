@@ -1,5 +1,6 @@
 "use client"
 
+import { CheckIcon } from "lucide-react"
 import { useState } from "react"
 import type { MatchPairsExercise } from "@/lib/api/types"
 import { haptic } from "@/lib/haptics"
@@ -53,7 +54,7 @@ export function MatchPairsExercise({ exercise, onResult }: MatchPairsExercisePro
         setWrong([])
         setLeft(null)
         setRight(null)
-      }, 400)
+      }, 500)
     }
   }
 
@@ -72,12 +73,17 @@ export function MatchPairsExercise({ exercise, onResult }: MatchPairsExercisePro
               className={cn(
                 "h-auto min-h-12 p-3 text-left whitespace-normal",
                 matched.includes(pair.en) && "border-emerald-400 bg-emerald-400/10",
-                wrong.includes(pair.en) && "border-rose-400 bg-rose-400/10",
-                left === pair.en && "border-indigo-400 bg-indigo-400/10",
+                wrong.includes(pair.en) && "animate-shake border-rose-400 bg-rose-400/10",
+                left === pair.en &&
+                  !wrong.includes(pair.en) &&
+                  "border-indigo-400 bg-indigo-400/10",
               )}
               onClick={() => chooseLeft(pair.en)}
             >
-              {pair.en}
+              <span className="flex items-center gap-2">
+                {matched.includes(pair.en) ? <CheckIcon className="size-4" /> : null}
+                {pair.en}
+              </span>
             </Button>
           ))}
         </div>
@@ -94,12 +100,17 @@ export function MatchPairsExercise({ exercise, onResult }: MatchPairsExercisePro
                 className={cn(
                   "h-auto min-h-12 p-3 text-left whitespace-normal",
                   isMatched && "border-emerald-400 bg-emerald-400/10",
-                  wrong.includes(pair.hi) && "border-rose-400 bg-rose-400/10",
-                  right === pair.hi && "border-indigo-400 bg-indigo-400/10",
+                  wrong.includes(pair.hi) && "animate-shake border-rose-400 bg-rose-400/10",
+                  right === pair.hi &&
+                    !wrong.includes(pair.hi) &&
+                    "border-indigo-400 bg-indigo-400/10",
                 )}
                 onClick={() => chooseRight(pair.hi)}
               >
-                {pair.hi}
+                <span className="flex items-center gap-2">
+                  {isMatched ? <CheckIcon className="size-4" /> : null}
+                  {pair.hi}
+                </span>
               </Button>
             )
           })}

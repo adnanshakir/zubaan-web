@@ -10,9 +10,10 @@ interface ErrorCardProps {
 }
 
 export function ErrorCard({ error, onRetry }: ErrorCardProps) {
+  const message = describeError(error)
   return (
     <Card className="rounded-2xl p-5 shadow-none">
-      <p className="text-sm text-muted-foreground">{describeError(error)}</p>
+      {message ? <p className="text-sm text-muted-foreground">{message}</p> : null}
       <Button variant="outline" size="sm" onClick={onRetry} className="mt-4">
         Try again
       </Button>

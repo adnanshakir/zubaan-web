@@ -167,12 +167,32 @@
   }
 }
 
+@keyframes shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-4px);
+  }
+  75% {
+    transform: translateX(4px);
+  }
+}
+
+.animate-shake {
+  animation: shake 0.35s ease-in-out;
+}
+
 .animate-pulse-ring {
   animation: pulse-ring 2s ease-out infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .animate-pulse-ring {
+    animation: none;
+  }
+  .animate-shake {
     animation: none;
   }
 }

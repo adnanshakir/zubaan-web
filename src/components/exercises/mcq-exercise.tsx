@@ -11,9 +11,16 @@ interface McqExerciseProps {
   value: string | null
   onChange: (value: string) => void
   disabled?: boolean
+  checked?: boolean
 }
 
-export function McqExercise({ exercise, value, onChange, disabled = false }: McqExerciseProps) {
+export function McqExercise({
+  exercise,
+  value,
+  onChange,
+  disabled = false,
+  checked = false,
+}: McqExerciseProps) {
   const [options] = useState(() => shuffle(exercise.options))
 
   useEffect(() => {
@@ -47,7 +54,12 @@ export function McqExercise({ exercise, value, onChange, disabled = false }: Mcq
             haptic={false}
             className={cn(
               "h-auto justify-start p-4 text-left whitespace-normal",
-              value === option && "border-indigo-400 bg-indigo-400/10",
+              !checked && value === option && "border-indigo-400 bg-indigo-400/10",
+              checked && option === exercise.correct && "border-emerald-400 bg-emerald-400/10",
+              checked && value === option && option !== exercise.correct
+                ? "border-rose-400 bg-rose-400/10"
+                : null,
+              checked && option !== value && option !== exercise.correct && "opacity-60",
             )}
             onClick={() => onChange(option)}
           >

@@ -109,9 +109,14 @@ export interface LessonListItem {
   estimatedMinutes: number
   sentenceCount: number
   exerciseCount: number
+  unit: string
+  order: number
+  canDo: string
 }
 
 export interface LessonDetail extends LessonListItem {
+  focus: string
+  lang: string
   sentences: Sentence[]
   stages: Stage[]
   chat: Chat
@@ -121,6 +126,7 @@ export interface Sentence {
   id: string
   text: string
   hi: string
+  meaning: string
   tip: string
   chunks: string[]
 }
@@ -139,6 +145,9 @@ export type Exercise =
   | MatchPairsExercise
   | OrderWordsExercise
   | SpeakExercise
+  | TypeGapExercise
+  | DictationExercise
+  | ReplySpeakExercise
 
 export interface McqExercise {
   id: string
@@ -189,6 +198,30 @@ export interface SpeakExercise {
   type: "speak"
   sentenceId: string
 }
+export interface TypeGapExercise {
+  id: string
+  type: "type_gap"
+  sentence: string
+  hi: string
+  accept: string[]
+  explanation: string
+  mistakeType?: MistakeKind
+}
+export interface DictationExercise {
+  id: string
+  type: "dictation"
+  text: string
+  explanation: string
+  mistakeType?: MistakeKind
+}
+export interface ReplySpeakExercise {
+  id: string
+  type: "reply_speak"
+  ai: string
+  hint: { en: string; hi: string; native: string }
+  accept: string[]
+  explanation: string
+}
 
 export interface Chat {
   aiRole: string
@@ -202,7 +235,7 @@ export interface Chat {
 export interface ChatTurn {
   ai: string
   sentenceId: string
-  hint: { en: string; hi: string }
+  hint: { en: string; hi: string; native: string }
 }
 
 export interface ConversationStartResponse {

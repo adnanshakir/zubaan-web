@@ -1,5 +1,14 @@
 import type { Exercise } from "@/lib/api/types"
 
+export function normalizeTyped(text: string): string {
+  return text
+    .trim()
+    .toLowerCase()
+    .replace(/[\u2018\u2019\u2032]/g, "'")
+    .replace(/[^\p{L}\p{N}' ]/gu, "")
+    .replace(/ {2,}/g, " ")
+}
+
 export interface QueueItem {
   exercise: Exercise
   retried: boolean
@@ -69,6 +78,16 @@ export function isCorrect(exercise: Exercise, answer: string | string[]): boolea
     )
   }
 
+  if (exercise.type === "type_gap") {
+    if (typeof answer !== "string") return false
+    const normalized = normalizeTyped(answer)
+    return exercise.accept.some((item) => normalizeTyped(item) === normalized)
+  }
+
+  if (exercise.type === "dictation") {
+    return typeof answer === "string" && normalizeTyped(answer) === normalizeTyped(exercise.text)
+  }
+
   return false
 }
 
@@ -96,7 +115,12 @@ export function scheduleRetry(
   item: QueueItem,
   gap = 3,
 ): RetryPlan {
-  if (item.retried || item.exercise.type === "speak" || item.exercise.type === "match_pairs") {
+  if (
+    item.retried ||
+    item.exercise.type === "speak" ||
+    item.exercise.type === "match_pairs" ||
+    item.exercise.type === "reply_speak"
+  ) {
     return plan
   }
   const retriedItem = { ...item, retried: true }

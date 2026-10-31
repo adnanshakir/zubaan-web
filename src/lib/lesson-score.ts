@@ -54,7 +54,9 @@ export function summarize(
   const resultById = new Map(attempt?.results.map((result) => [result.exerciseId, result]) ?? [])
   const wordsExercises = lesson.stages.find((stage) => stage.id === "words")?.exercises ?? []
   const sentenceExercises = lesson.stages.find((stage) => stage.id === "sentences")?.exercises ?? []
-  const speakingExercises = sentenceExercises.filter((exercise) => exercise.type === "speak")
+  const speakingExercises = sentenceExercises.filter(
+    (exercise) => exercise.type === "speak" || exercise.type === "reply_speak",
+  )
 
   const component = (
     exercises: typeof wordsExercises,
@@ -97,19 +99,29 @@ export function summarize(
     ),
   }
   const nonSpeak = lesson.stages.flatMap((stage) =>
-    stage.exercises.filter((exercise) => exercise.type !== "speak"),
+    stage.exercises.filter(
+      (exercise) => exercise.type !== "speak" && exercise.type !== "reply_speak",
+    ),
   )
   const firstTryResults = nonSpeak
     .map((exercise) => resultById.get(exercise.id))
     .filter((result) => result !== undefined)
   const skipped =
-    (attempt?.results.filter((result) => result.type === "speak" && result.result === "skipped")
-      .length ?? 0) + perPhrase.filter((phrase) => phrase.outcome === "moved_on").length
+    (attempt?.results.filter(
+      (result) =>
+        (result.type === "speak" || result.type === "reply_speak") && result.result === "skipped",
+    ).length ?? 0) + perPhrase.filter((phrase) => phrase.outcome === "moved_on").length
 
   return {
     input: {
-      words: component(wordsExercises, (exercise) => exercise.type !== "speak"),
-      sentences: component(sentenceExercises, (exercise) => exercise.type !== "speak"),
+      words: component(
+        wordsExercises,
+        (exercise) => exercise.type !== "speak" && exercise.type !== "reply_speak",
+      ),
+      sentences: component(
+        sentenceExercises,
+        (exercise) => exercise.type !== "speak" && exercise.type !== "reply_speak",
+      ),
       speaking,
       chat,
     },

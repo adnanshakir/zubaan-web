@@ -168,3 +168,9 @@ what to do next.
 Onboarding, Home, Lessons list, Lesson detail (learn, repeat, roleplay),
 Conversation, Mistakes, Voice lab. Data for each screen: see
 `docs/api/INDEX.md`.
+
+## Exercise types
+
+- **type_gap**: sentence with a typed blank, the Hindi text below; accepts any of the `accept` items after normalizing.
+- **dictation**: listen-and-type; auto-plays once, unlimited replay, exact normalized match.
+- **reply_speak**: AI chat bubble + hint card + record a spoken reply; best `matchSpeech` across all `accept` items.

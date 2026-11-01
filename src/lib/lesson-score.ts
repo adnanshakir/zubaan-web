@@ -54,8 +54,10 @@ export function summarize(
   const resultById = new Map(attempt?.results.map((result) => [result.exerciseId, result]) ?? [])
   const wordsExercises = lesson.stages.find((stage) => stage.id === "words")?.exercises ?? []
   const sentenceExercises = lesson.stages.find((stage) => stage.id === "sentences")?.exercises ?? []
-  const speakingExercises = sentenceExercises.filter(
-    (exercise) => exercise.type === "speak" || exercise.type === "reply_speak",
+  const speakingExercises = lesson.stages.flatMap((stage) =>
+    stage.exercises.filter(
+      (exercise) => exercise.type === "speak" || exercise.type === "reply_speak",
+    ),
   )
 
   const component = (

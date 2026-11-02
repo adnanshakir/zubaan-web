@@ -26,6 +26,8 @@ import type {
   SttLanguageCode,
   SttMode,
   SttResponse,
+  SaveProgressRequest,
+  SaveProgressResponse,
   TtsRequest,
   TtsResponse,
 } from "./types"
@@ -160,6 +162,9 @@ export const api = {
 
   completeAttempt: (attemptId: string, body: AttemptCompleteRequest) =>
     request<LessonAttemptResponse>(`/api/attempts/${attemptId}/complete`, post(body)),
+
+  saveProgress: (lessonId: string, body: SaveProgressRequest) =>
+    request<SaveProgressResponse>(`/api/lessons/${lessonId}/progress`, post(body)),
 
   attempt: (attemptId: string) => request<LessonAttemptResponse>(`/api/attempts/${attemptId}`),
 

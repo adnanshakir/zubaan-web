@@ -2,9 +2,7 @@
 // A plain module instead of a hook, so it works in any event handler or
 // async catch block. On the server it does nothing.
 //
-// Phones vibrate. Browsers that cannot vibrate (desktop, iOS Safari) play the
-// library's click sound instead, so the feedback is audible there. The sound
-// can be switched off with setSoundEnabled(false); the choice is remembered.
+// The app's sound effects are handled by sfx.ts; web-haptics is vibration-only.
 
 import { WebHaptics } from "web-haptics"
 
@@ -23,9 +21,9 @@ function readStorage(): string | null {
   }
 }
 
-/** Sound is on by default only where the device cannot vibrate. */
+/** Sound is on by default on every device. */
 function soundDefault(): boolean {
-  return !("vibrate" in navigator)
+  return true
 }
 
 export function isSoundEnabled(): boolean {
@@ -57,15 +55,21 @@ export function subscribeSound(onChange: () => void): () => void {
 
 function run(input: HapticInput, intensity?: number): void {
   if (typeof window === "undefined") return
-  instance ??= new WebHaptics({ debug: isSoundEnabled() })
+  instance ??= new WebHaptics({ debug: false })
   void instance.trigger(input, intensity === undefined ? undefined : { intensity })
 }
 
 export const haptic = {
   /** Light tick: any button press or navigation tap. */
-  tap: () => run(8, 0.4),
+  tap: () => {
+    run(8, 0.4)
+    void import("@/lib/sfx").then(({ sfx }) => sfx.play("tap"))
+  },
   /** Slightly firmer tick: choosing an option in a list. */
-  select: () => run(12, 0.55),
+  select: () => {
+    run(12, 0.55)
+    void import("@/lib/sfx").then(({ sfx }) => sfx.play("select"))
+  },
   /** Two taps: something worked (word said right, onboarding done, lesson finished). */
   success: () => run("success"),
   /** Strong tap then soft tap: heads-up (almost right, recording started or stopped). */

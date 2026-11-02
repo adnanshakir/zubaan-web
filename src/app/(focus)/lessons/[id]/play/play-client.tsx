@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation"
 import type { AttemptResultRequest, Exercise, LessonDetail } from "@/lib/api/types"
 import { api, describeError } from "@/lib/api/client"
 import { haptic } from "@/lib/haptics"
+import { sfx } from "@/lib/sfx"
 import { createAttemptSync } from "@/lib/attempt-sync"
 import {
   isCorrect,
@@ -89,6 +90,10 @@ function LessonPlayer({ id, lesson }: { id: string; lesson: LessonDetail }) {
   const attemptCompleted = useRef(false)
   const pendingAttempt = useRef<Promise<string> | null>(null)
   const attemptSync = useRef<ReturnType<typeof createAttemptSync> | null>(null)
+
+  useEffect(() => {
+    if (lesson.progress.status === "locked") router.replace(`/lessons/${id}`)
+  }, [id, lesson.progress.status, router])
 
   useEffect(() => {
     let active = true
@@ -178,6 +183,7 @@ function LessonPlayer({ id, lesson }: { id: string; lesson: LessonDetail }) {
         setMilestone(message)
         if (nextStreak === 3) haptic.nudge()
         else haptic.success()
+        sfx.play("streak", nextStreak >= 8 ? 1.2 : nextStreak >= 5 ? 1.1 : 1)
         if (milestoneTimeout.current !== null) {
           window.clearTimeout(milestoneTimeout.current)
         }
@@ -219,8 +225,13 @@ function LessonPlayer({ id, lesson }: { id: string; lesson: LessonDetail }) {
     setLastCorrect(correct)
     setLastLabel(label)
     setChecked(true)
-    if (correct) haptic.success()
-    else haptic.error()
+    if (correct) {
+      haptic.success()
+      sfx.play("correct")
+    } else {
+      haptic.error()
+      sfx.play("wrong")
+    }
     if (!correct) {
       setPlan((previous) => scheduleRetry(previous, 0, item))
     }
@@ -256,6 +267,7 @@ function LessonPlayer({ id, lesson }: { id: string; lesson: LessonDetail }) {
     }
     setPhase("stage-done")
     haptic.success()
+    sfx.play("complete")
   }
 
   function startReview() {
@@ -269,6 +281,7 @@ function LessonPlayer({ id, lesson }: { id: string; lesson: LessonDetail }) {
   function continueStage() {
     if (stageIndex + 1 >= lesson.stages.length) {
       setPhase("ready")
+      sfx.play("complete")
       return
     }
     setStageIndex((index) => index + 1)

@@ -116,7 +116,7 @@ remains stable after the lesson ends.
   right; nudge = recording start/stop, a correction shown, a phrase "almost";
   error = failures (always through `notifyError`) and a missed phrase. Import
   from `@/lib/haptics` and `@/lib/notify`.
-- Sounds are on by default only on devices that cannot vibrate (desktop, iOS);
+- Sounds are on by default on every device; the toggle is on Home.
   the toggle is on Home.
 - **Loading:** `Skeleton` blocks that match the final layout. Spinners only
   inside buttons (the `loading` prop).
@@ -168,6 +168,26 @@ what to do next.
 Onboarding, Home, Lessons list, Lesson detail (learn, repeat, roleplay),
 Conversation, Mistakes, Voice lab. Data for each screen: see
 `docs/api/INDEX.md`.
+
+## Lesson path
+
+The path groups lessons into Starter, Everyday, Confident and Fluent. Available
+lessons show their number, the current lesson uses an indigo border and tint,
+completed lessons show an emerald check and best score, and locked lessons are
+muted with a lock. A locked lesson can only be opened after its `unlockAfter`
+lesson is completed.
+
+## Sounds
+
+Sounds are on by default and can be toggled on Home. The available sounds are
+`tap`, `select`, `correct`, `wrong`, `streak`, `complete`, `unlock`, `mic-start`,
+`mic-stop` and `error`. They use volume 0.3 for tap/select and 0.5 for all
+others: tap/select come from haptics, correct/wrong/streak/complete play in the
+lesson player, unlock on a newly completed lesson, mic sounds when recording
+starts/stops, and error on error notifications.
+
+`NEXT_PUBLIC_DEV_SKIP=true` enables the lesson overview's Skip to conversation
+action.
 
 ## Exercise types
 

@@ -67,6 +67,11 @@ export interface AttemptCompleteRequest {
   bestStreak: number // integer, 0–200
 }
 
+export interface SaveProgressRequest {
+  score: number
+  conversationId: string
+}
+
 export interface ConversationTurnRequest {
   text: string // 1–500 chars
 }
@@ -97,6 +102,15 @@ export interface OnboardingResponse {
 export interface HomeResponse {
   greetingName: string
   recommendedLesson: LessonListItem | null
+  pathProgress: { completed: number; total: number }
+  allCompleted: boolean
+}
+
+export interface LessonProgress {
+  status: "locked" | "available" | "completed"
+  bestScore: number
+  attempts: number
+  unlockAfter: { id: string; title: string } | null
 }
 
 export interface LessonListItem {
@@ -112,6 +126,8 @@ export interface LessonListItem {
   unit: string
   order: number
   canDo: string
+  progress: LessonProgress
+  isCurrent: boolean
 }
 
 export interface LessonDetail extends LessonListItem {
@@ -314,6 +330,14 @@ export interface LessonAttemptResponse {
     explanation: string
     mistakeType: MistakeKind
   }>
+}
+
+export interface SaveProgressResponse {
+  passed: boolean
+  newlyPassed: boolean
+  nextLessonId: string | null
+  passScore: number
+  bestScore: number
 }
 
 export interface Correction {

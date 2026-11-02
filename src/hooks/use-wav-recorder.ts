@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import { blobToWav } from "@/lib/audio/wav"
+import { sfx } from "@/lib/sfx"
 
 export const MAX_RECORD_SECONDS = 25 // the backend rejects audio over 30 seconds
 const MIN_RECORD_SECONDS = 0.4
@@ -118,7 +119,10 @@ export function useWavRecorder({ onRecorded, onError }: UseWavRecorderOptions) {
 
   const stop = useCallback(() => {
     const recorder = recorderRef.current
-    if (recorder && recorder.state === "recording") recorder.stop()
+    if (recorder && recorder.state === "recording") {
+      recorder.stop()
+      sfx.play("mic-stop")
+    }
   }, [])
 
   const start = useCallback(async () => {
@@ -167,6 +171,7 @@ export function useWavRecorder({ onRecorded, onError }: UseWavRecorderOptions) {
 
       recorderRef.current = recorder
       recorder.start()
+      sfx.play("mic-start")
       setStatus("recording")
       timeoutRef.current = window.setTimeout(stop, MAX_RECORD_SECONDS * 1000)
     } catch (error) {

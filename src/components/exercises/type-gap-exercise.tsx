@@ -27,6 +27,7 @@ export function TypeGapExercise({
     (event: React.KeyboardEvent) => {
       if (event.key === "Enter" && onEnter) {
         event.preventDefault()
+        event.stopPropagation()
         onEnter()
       }
     },

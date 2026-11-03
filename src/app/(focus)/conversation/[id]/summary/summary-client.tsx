@@ -42,14 +42,17 @@ export default function SummaryClient({ id }: { id: string }) {
   const [progressResult, setProgressResult] = useState<Awaited<
     ReturnType<typeof api.saveProgress>
   > | null>(null)
+  const [progressError, setProgressError] = useState(false)
+  const [progressRetry, setProgressRetry] = useState(0)
   const progressSaved = useRef(false)
 
   useEffect(() => {
-    if (!data || data.conversation.status === "active") return
+    if (!data || data.conversation.status !== "completed") return
     const summary = summarize(data.lesson, data.attempt, data.conversation)
     const score = lessonScore(summary.input)
     if (!data.conversation.attemptId || progressSaved.current) return
     progressSaved.current = true
+    setProgressError(false)
     void api
       .saveProgress(data.conversation.lessonId, { score, conversationId: id })
       .then((result) => {
@@ -60,9 +63,10 @@ export default function SummaryClient({ id }: { id: string }) {
         }
       })
       .catch(() => {
-        console.warn("Could not save lesson progress")
+        progressSaved.current = false
+        setProgressError(true)
       })
-  }, [data, id])
+  }, [data, id, progressRetry])
 
   if (loading) {
     return (
@@ -141,7 +145,12 @@ export default function SummaryClient({ id }: { id: string }) {
         <div className="mt-4">
           <ScoreRing score={score} label={scoreLabel(score)} />
         </div>
-        <ProgressCard result={progressResult} hasAttempt={data.conversation.attemptId !== null} />
+        <ProgressCard
+          result={progressResult}
+          hasAttempt={data.conversation.attemptId !== null}
+          error={progressError}
+          onRetry={() => setProgressRetry((current) => current + 1)}
+        />
         <p className="mt-3 text-sm text-muted-foreground">
           {phraseCount} of {summary.perPhrase.length} phrases said in the conversation
         </p>
@@ -257,14 +266,28 @@ export default function SummaryClient({ id }: { id: string }) {
 function ProgressCard({
   result,
   hasAttempt,
+  error,
+  onRetry,
 }: {
   result: Awaited<ReturnType<typeof api.saveProgress>> | null
   hasAttempt: boolean
+  error: boolean
+  onRetry: () => void
 }) {
   if (!hasAttempt) {
     return (
       <Card className="mt-6 rounded-2xl p-4 text-sm text-muted-foreground shadow-none">
         Finish the full lesson to unlock the next one.
+      </Card>
+    )
+  }
+  if (error) {
+    return (
+      <Card className="mt-6 flex flex-col gap-3 rounded-2xl p-4 shadow-none">
+        <p className="text-sm text-muted-foreground">Couldn&apos;t save your lesson progress.</p>
+        <Button variant="outline" size="sm" onClick={onRetry}>
+          Try again
+        </Button>
       </Card>
     )
   }

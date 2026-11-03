@@ -31,12 +31,20 @@ interface SpeechResult {
 export function ReplySpeakExercise({ exercise, onResult, onSkip }: ReplySpeakExerciseProps) {
   const player = usePhrasePlayer()
   const playedOnce = useRef(false)
+  const checkToken = useRef(0)
+  const mounted = useRef(true)
   const [showReply, setShowReply] = useState(false)
-  const [recording, setRecording] = useState(false)
   const [busy, setBusy] = useState(false)
   const [result, setResult] = useState<SpeechResult | null>(null)
   const { play, stop } = player
   const playing = player.active?.id === exercise.id
+
+  useEffect(() => {
+    return () => {
+      mounted.current = false
+      checkToken.current += 1
+    }
+  }, [])
 
   useEffect(() => {
     if (!playedOnce.current) {
@@ -47,9 +55,11 @@ export function ReplySpeakExercise({ exercise, onResult, onSkip }: ReplySpeakExe
   }, [exercise.id, exercise.ai, play, stop])
 
   async function check(wav: Blob) {
+    const token = ++checkToken.current
     setBusy(true)
     try {
       const sttResult = await api.stt(wav, { language: "en-IN" })
+      if (!mounted.current || token !== checkToken.current) return
       if (isNonLatin(sttResult.text)) {
         notifyError("We couldn't read that as English. Try again, a little slower.")
         return
@@ -68,16 +78,17 @@ export function ReplySpeakExercise({ exercise, onResult, onSkip }: ReplySpeakExe
       setResult({ match: bestMatch, heard: sttResult.text.trim() })
 
       const verdict = bestMatch.verdict
+      if (!mounted.current || token !== checkToken.current) return
       if (verdict === "said") haptic.success()
       else if (verdict === "close") haptic.nudge()
       else haptic.error()
 
       onResult(verdict !== "missed", undefined, verdict)
     } catch (error) {
+      if (!mounted.current || token !== checkToken.current) return
       notifyError(describeError(error))
     } finally {
-      setBusy(false)
-      setRecording(false)
+      if (mounted.current && token === checkToken.current) setBusy(false)
     }
   }
 
@@ -88,7 +99,6 @@ export function ReplySpeakExercise({ exercise, onResult, onSkip }: ReplySpeakExe
     onError: (message) => {
       notifyError(message)
       setBusy(false)
-      setRecording(false)
     },
   })
 
@@ -99,10 +109,12 @@ export function ReplySpeakExercise({ exercise, onResult, onSkip }: ReplySpeakExe
       return
     }
     player.stop()
-    setRecording(true)
     haptic.nudge()
     void recorder.start()
   }
+
+  const recording = recorder.status === "recording"
+  const unavailable = recording || recorder.status === "encoding" || busy
 
   return (
     <div className="flex flex-col gap-5" data-exercise-id={exercise.id}>
@@ -158,7 +170,7 @@ export function ReplySpeakExercise({ exercise, onResult, onSkip }: ReplySpeakExe
             variant={recording ? "indigo" : "outline"}
             size="icon"
             aria-label={recording ? "Stop recording" : "Record your reply"}
-            loading={busy || recorder.status === "encoding"}
+            loading={unavailable}
             onClick={toggleRecording}
           >
             {recording ? <SquareIcon /> : <MicIcon />}
@@ -172,7 +184,9 @@ export function ReplySpeakExercise({ exercise, onResult, onSkip }: ReplySpeakExe
         <Button
           variant="ghost"
           size="sm"
+          disabled={unavailable}
           onClick={() => {
+            checkToken.current += 1
             onSkip?.()
             onResult(true)
           }}

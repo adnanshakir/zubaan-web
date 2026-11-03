@@ -67,6 +67,9 @@ export function DictationExercise({
           autoCapitalize="off"
           autoCorrect="off"
           spellCheck={false}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") event.stopPropagation()
+          }}
         />
         <p className="text-xs text-muted-foreground">Type what you hear</p>
       </div>

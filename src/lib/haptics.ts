@@ -12,6 +12,7 @@ const SOUND_KEY = "zubaan:sounds"
 const SOUND_EVENT = "zubaan:sounds-changed"
 
 let instance: WebHaptics | null = null
+let soundPreference: boolean | null = null
 
 function readStorage(): string | null {
   try {
@@ -29,11 +30,16 @@ function soundDefault(): boolean {
 export function isSoundEnabled(): boolean {
   if (typeof window === "undefined") return false
   const stored = readStorage()
-  return stored === null ? soundDefault() : stored === "on"
+  if (stored !== null) {
+    soundPreference = stored === "on"
+    return soundPreference
+  }
+  return soundPreference ?? soundDefault()
 }
 
 export function setSoundEnabled(enabled: boolean): void {
   if (typeof window === "undefined") return
+  soundPreference = enabled
   try {
     window.localStorage.setItem(SOUND_KEY, enabled ? "on" : "off")
   } catch {

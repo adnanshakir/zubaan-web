@@ -42,13 +42,14 @@ The root layout supplies fonts, dark mode, metadata, and the toast host
 | Route | Layout | API calls made by the route |
 |---|---|---|
 | `/` | root only | None; redirects to `/home` or `/onboarding` from `src/app/page.tsx` |
-| `/onboarding` | root only | `onboard` on submit |
+| `/onboarding` | root only | `onboard` on submit, then redirects to `/placement` |
+| `/placement` | focus | `placement`, `stt`, `submitPlacement`, `setPlacementLevel` |
 | `/home` | app | `home` |
 | `/lessons` | app | `lessons` |
 | `/lessons/[id]` | app | `lesson`; optional `startConversation` for “Skip to conversation” |
 | `/lessons/[id]/play` | focus | `lesson`, `startAttempt`, queued `recordResult`, `completeAttempt`, `startConversation` |
 | `/conversation/[id]` | focus | `conversation`, `lesson`, `takeTurn`, `stt`, `endConversation` |
-| `/conversation/[id]/summary` | focus | `conversation`, `lesson`, optional `attempt`; `startConversation` for chat again |
+| `/conversation/[id]/summary` | focus | `conversation`, `lesson`, optional `attempt`, `saveProgress`; `startConversation` for chat again |
 | `/mistakes` | app | `mistakeSummary`, paginated `mistakes`, and `tts` for corrected phrases |
 | `/voice-lab` | app | `tts` and `stt` |
 
@@ -116,13 +117,16 @@ best streak is sent to the backend. These rules are pure functions in
 | `OrderWordsExercise` | Tap shuffled tiles; tap selected tiles to remove | Array is compared to the normalized answer |
 | `MatchPairsExercise` | Match English and Hindi columns | Reports success only if every pair is matched with no mistake |
 | `SpeakExercise` | Listen/slow, record, or skip a target sentence | `said`, `close`, `missed`, or skipped |
+| `TypeGapExercise` | Type the missing word | `correct` or `wrong` |
+| `DictationExercise` | Listen and type the sentence | `correct` or `wrong` |
+| `ReplySpeakExercise` | Hear a prompt, record a reply, or skip | `said`, `close`, `missed`, or skipped |
 
 `ExerciseView` in `play-client.tsx` maps API exercise types to these
 components. `isCorrect`, `buildQueue`, `scheduleRetry`, `streakAfter`,
 `streakMilestone`, `stageStats`, `shuffle`, `shuffleColumns`, `buildTiles`,
-and `normalizeWord` are the pure player helpers. `isCorrect` uses exact
-strings for MCQ/gap/listen-pick and normalized word order for order-words;
-there is no client answer check for match-pairs or speech.
+and `normalizeWord` are the pure player helpers. `isCorrect` uses exact strings for MCQ/gap/listen-pick, normalized word order
+for order-words, normalized text for type-gap/dictation, and no client answer
+check for match-pairs or speech.
 
 ## 5. Conversation screen
 
@@ -201,9 +205,9 @@ maps status 0, 401, 409, 429, 502, and 504 to user-facing copy. `useApi`
 handles loading/reload and clears a matching local session on 401.
 
 **Haptics and sounds.** `src/lib/haptics.ts` maps tap/select/success/nudge/error
-to web-haptics, falling back to sound where vibration is unavailable. The
-sound preference is localStorage-backed and toggled on Home. `notifyError`
-always combines an error toast with an error haptic
+to web-haptics; haptics do not fall back to sound. Sounds are on by default on
+every device, and the sound preference is toggled on Home and retained in
+localStorage when available. `notifyError` always combines an error toast with an error haptic
 (`src/lib/notify.ts`).
 
 **Design rules in 10 lines.**
@@ -227,7 +231,7 @@ These rules are summarized from [`DESIGN.md`](../DESIGN.md).
 |---|---|---|
 | User id | `localStorage` key `zubaan:userId` | Persists until Start over/session clear |
 | Native language | `localStorage` key `zubaan:nativeLanguage` | Persists with the user id |
-| Sound preference | `localStorage` key `zubaan:sounds` | Persists; defaults on non-vibrating devices |
+| Sound preference | `localStorage` key `zubaan:sounds` | Persists when available; defaults on every device |
 | Route id | URL | Persists only while the URL is retained |
 | Lists/detail/summary data | React state from API | Fetched again |
 | Player queue, answers, feedback, streak | React state/refs | Lost; player restarts and may create a new attempt |

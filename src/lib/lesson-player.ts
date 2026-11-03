@@ -5,6 +5,7 @@ export function normalizeTyped(text: string): string {
     .trim()
     .toLowerCase()
     .replace(/[\u2018\u2019\u2032]/g, "'")
+    .replace(/\s+/g, " ")
     .replace(/[^\p{L}\p{N}' ]/gu, "")
     .replace(/ {2,}/g, " ")
 }

@@ -58,6 +58,7 @@ export default function PlacementClient() {
   const [result, setResult] = useState<PlacementResultResponse | null>(null)
   const [freeSample, setFreeSample] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const [beginnerSubmitting, setBeginnerSubmitting] = useState(false)
   const [freeSeconds, setFreeSeconds] = useState(0)
   const router = useRouter()
 
@@ -109,8 +110,17 @@ export default function PlacementClient() {
           <Button
             variant="outline"
             className="w-full"
+            loading={beginnerSubmitting}
+            disabled={beginnerSubmitting}
             onClick={() => {
-              void api.setPlacementLevel("beginner", "beginner").then(() => router.push("/home"))
+              setBeginnerSubmitting(true)
+              void api
+                .setPlacementLevel("beginner", "beginner")
+                .then(() => router.push("/home"))
+                .catch((requestError) => {
+                  notifyError(describeError(requestError))
+                  setBeginnerSubmitting(false)
+                })
             }}
           >
             I am a complete beginner
@@ -229,6 +239,7 @@ function QuestionPhase({
         </div>
         {item.kind === "mcq" ? (
           <McqExercise
+            key={item.id}
             exercise={{
               id: item.id,
               type: "mcq",
@@ -243,6 +254,7 @@ function QuestionPhase({
           />
         ) : item.kind === "listen_pick" ? (
           <ListenPickExercise
+            key={item.id}
             exercise={{
               id: item.id,
               type: "listen_pick",
@@ -257,7 +269,11 @@ function QuestionPhase({
             onChange={choiceSelected}
           />
         ) : (
-          <ReadAloud item={item} onResult={(result) => onNext({ itemId: item.id, ...result })} />
+          <ReadAloud
+            key={item.id}
+            item={item}
+            onResult={(result) => onNext({ itemId: item.id, ...result })}
+          />
         )}
       </div>
       {item.kind !== "read_aloud" ? (
@@ -318,6 +334,7 @@ function FreePhase({
 
   useEffect(() => {
     if (status !== "recording") return
+    startedAt.current = Date.now()
     const timer = window.setInterval(() => {
       const elapsed = Math.floor((Date.now() - (startedAt.current ?? Date.now())) / 1000)
       onSeconds(Math.min(elapsed, data.free.maxSeconds))
@@ -333,7 +350,6 @@ function FreePhase({
       return
     }
     onSample(null)
-    startedAt.current = Date.now()
     onSeconds(0)
     haptic.nudge()
     void start()
@@ -396,11 +412,13 @@ function ResultPhase({ result }: { result: PlacementResultResponse }) {
     result.speaking.passed / speakingTotal + 0.34 < result.understanding.passed / understandingTotal
 
   async function changeLevel(next: Level) {
+    const previous = level
     setLevel(next)
     setChanging(true)
     try {
       await api.setPlacementLevel(next, "manual")
     } catch (error) {
+      setLevel(previous)
       notifyError(describeError(error))
     } finally {
       setChanging(false)

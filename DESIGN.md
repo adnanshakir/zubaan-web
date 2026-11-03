@@ -117,7 +117,6 @@ remains stable after the lesson ends.
   error = failures (always through `notifyError`) and a missed phrase. Import
   from `@/lib/haptics` and `@/lib/notify`.
 - Sounds are on by default on every device; the toggle is on Home.
-  the toggle is on Home.
 - **Loading:** `Skeleton` blocks that match the final layout. Spinners only
   inside buttons (the `loading` prop).
 - **Icons:** lucide-react, `size-4` in buttons, `size-5` in the nav.

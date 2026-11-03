@@ -170,8 +170,12 @@ export function useWavRecorder({ onRecorded, onError }: UseWavRecorderOptions) {
       }
 
       recorderRef.current = recorder
+      await sfx.playAndWait("mic-start")
+      if (!mountedRef.current) {
+        recorderRef.current = null
+        return
+      }
       recorder.start()
-      sfx.play("mic-start")
       setStatus("recording")
       timeoutRef.current = window.setTimeout(stop, MAX_RECORD_SECONDS * 1000)
     } catch (error) {

@@ -6,6 +6,7 @@ import { api, describeError } from "@/lib/api/client"
 import { haptic } from "@/lib/haptics"
 import { notifyError } from "@/lib/notify"
 import { isNonLatin } from "@/lib/text"
+import { matchSpeech } from "@/lib/speech-match"
 import { useWavRecorder } from "@/hooks/use-wav-recorder"
 import { Button } from "@/components/ui/button"
 import type { PlacementItem } from "@/lib/api/types"
@@ -25,7 +26,7 @@ export function ReadAloud({ item, onResult }: ReadAloudProps) {
         return
       }
       setRecorded(true)
-      onResult({ passed: true })
+      onResult({ passed: matchSpeech(item.text, result.text).verdict !== "missed" })
     } catch (error) {
       notifyError(describeError(error))
     }

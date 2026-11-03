@@ -23,9 +23,14 @@ import type {
   MistakeType,
   OnboardingRequest,
   OnboardingResponse,
+  PlacementLevelRequest,
+  PlacementResponse,
+  PlacementResultRequest,
+  PlacementResultResponse,
   SttLanguageCode,
   SttMode,
   SttResponse,
+  LessonProgressResponse,
   TtsRequest,
   TtsResponse,
 } from "./types"
@@ -147,10 +152,25 @@ export const api = {
 
   home: () => request<HomeResponse>("/api/home"),
 
-  lessons: (filter: { category?: LessonCategory; level?: Level } = {}) =>
+  placement: (lang?: string) => request<PlacementResponse>(withQuery("/api/placement", { lang })),
+
+  submitPlacement: (body: PlacementResultRequest) =>
+    request<PlacementResultResponse>("/api/placement/result", post(body)),
+
+  setPlacementLevel: (
+    level: PlacementLevelRequest["level"],
+    source?: PlacementLevelRequest["source"],
+  ) =>
+    request<void>("/api/placement/level", {
+      method: "PUT",
+      body: JSON.stringify({ level, source }),
+    }),
+
+  lessons: (filter: { category?: LessonCategory; level?: Level; lang?: string } = {}) =>
     request<LessonListItem[]>(withQuery("/api/lessons", filter)),
 
-  lesson: (id: string) => request<LessonDetail>(`/api/lessons/${id}`),
+  lesson: (id: string, lang?: string) =>
+    request<LessonDetail>(withQuery(`/api/lessons/${id}`, { lang })),
 
   startAttempt: (lessonId: string) =>
     request<{ attemptId: string }>(`/api/lessons/${lessonId}/attempts`, { method: "POST" }),
@@ -160,6 +180,9 @@ export const api = {
 
   completeAttempt: (attemptId: string, body: AttemptCompleteRequest) =>
     request<LessonAttemptResponse>(`/api/attempts/${attemptId}/complete`, post(body)),
+
+  saveProgress: (lessonId: string, body: { score: number; conversationId: string }) =>
+    request<LessonProgressResponse>(`/api/lessons/${lessonId}/progress`, post(body)),
 
   attempt: (attemptId: string) => request<LessonAttemptResponse>(`/api/attempts/${attemptId}`),
 

@@ -97,6 +97,59 @@ export interface OnboardingResponse {
 export interface HomeResponse {
   greetingName: string
   recommendedLesson: LessonListItem | null
+  pathProgress: { completed: number; total: number }
+  allCompleted: boolean
+  placementDone: boolean
+}
+
+export type PlacementItemKind = "mcq" | "listen_pick" | "read_aloud"
+
+export interface PlacementItem {
+  id: string
+  kind: PlacementItemKind
+  prompt: string
+  text: string
+  options: string[]
+  correct: string
+  native?: string
+}
+
+export interface PlacementTier {
+  tier: number
+  items: PlacementItem[]
+}
+
+export interface PlacementInstructions {
+  en: string
+  native: string
+}
+
+export interface PlacementResponse {
+  tiers: PlacementTier[]
+  instructions: Record<PlacementItemKind, PlacementInstructions>
+  free: PlacementInstructions & { maxSeconds: number }
+}
+
+export interface PlacementAnswer {
+  itemId: string
+  passed: boolean
+  skipped?: boolean
+}
+
+export interface PlacementResultRequest {
+  answers: PlacementAnswer[]
+  sample?: string
+}
+
+export interface PlacementResultResponse {
+  level: Level
+  understanding: { passed: number; total: number }
+  speaking: { passed: number; total: number; skipped: number }
+}
+
+export interface PlacementLevelRequest {
+  level: Level
+  source?: "test" | "beginner" | "manual"
 }
 
 export interface LessonListItem {
@@ -109,18 +162,43 @@ export interface LessonListItem {
   estimatedMinutes: number
   sentenceCount: number
   exerciseCount: number
+  unit: string
+  order: number
+  canDo: string
+  progress: {
+    status: "locked" | "available" | "completed"
+    bestScore: number | null
+    attempts: number
+    unlockAfter: { id: string; title: string } | null
+  }
+  isCurrent: boolean
 }
 
 export interface LessonDetail extends LessonListItem {
+  focus: string
+  lang: string
   sentences: Sentence[]
   stages: Stage[]
   chat: Chat
+}
+
+export interface LessonProgressResponse {
+  lessonId: string
+  bestScore: number
+  attempts: number
+  passed: boolean
+  newlyPassed: boolean
+  passScore: number
+  nextLessonId: string | null
+  completedCount: number
+  total: number
 }
 
 export interface Sentence {
   id: string
   text: string
   hi: string
+  meaning: string
   tip: string
   chunks: string[]
 }
@@ -139,6 +217,9 @@ export type Exercise =
   | MatchPairsExercise
   | OrderWordsExercise
   | SpeakExercise
+  | TypeGapExercise
+  | DictationExercise
+  | ReplySpeakExercise
 
 export interface McqExercise {
   id: string
@@ -189,6 +270,30 @@ export interface SpeakExercise {
   type: "speak"
   sentenceId: string
 }
+export interface TypeGapExercise {
+  id: string
+  type: "type_gap"
+  sentence: string
+  hi: string
+  accept: string[]
+  explanation: string
+  mistakeType?: MistakeKind
+}
+export interface DictationExercise {
+  id: string
+  type: "dictation"
+  text: string
+  explanation: string
+  mistakeType?: MistakeKind
+}
+export interface ReplySpeakExercise {
+  id: string
+  type: "reply_speak"
+  ai: string
+  hint: { en: string; hi: string; native: string }
+  accept: string[]
+  explanation: string
+}
 
 export interface Chat {
   aiRole: string
@@ -202,7 +307,7 @@ export interface Chat {
 export interface ChatTurn {
   ai: string
   sentenceId: string
-  hint: { en: string; hi: string }
+  hint: { en: string; hi: string; native: string }
 }
 
 export interface ConversationStartResponse {
@@ -368,6 +473,9 @@ export interface User {
   placement: {
     selfReported: Level
     measured?: Level
+    source?: "test" | "beginner" | "manual"
+    completedAt?: string
+    sample?: string
   }
   createdAt: string
   updatedAt: string

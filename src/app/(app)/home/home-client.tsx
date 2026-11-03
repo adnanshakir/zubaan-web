@@ -8,7 +8,6 @@ import { TextMorph } from "torph/react"
 import { api, clearUserId } from "@/lib/api/client"
 import { haptic, isSoundEnabled, setSoundEnabled, subscribeSound } from "@/lib/haptics"
 import { useApi } from "@/hooks/use-api"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -40,18 +39,33 @@ export default function HomeClient() {
       </header>
 
       <section className="mt-8">
-        <h2 className="text-lg font-medium">Recommended for you</h2>
+        {!loading && !error && data && !data.placementDone ? (
+          <Card className="mb-6 gap-4 rounded-2xl p-5 shadow-none">
+            <div>
+              <h2 className="text-base font-medium">Find your starting level</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                A 3 minute test so we can show the right lessons first.
+              </p>
+            </div>
+            <Button asChild variant="indigo" className="w-full">
+              <Link href="/placement">Take the test</Link>
+            </Button>
+          </Card>
+        ) : null}
+        <h2 className="text-lg font-medium">Continue</h2>
         <div className="mt-3">
           {loading ? (
             <Skeleton className="h-44 rounded-2xl" />
           ) : error ? (
             <ErrorCard error={error} onRetry={reload} />
-          ) : data?.recommendedLesson === null ? (
-            <Card className="gap-1 rounded-2xl p-5 shadow-none">
-              <p className="text-sm font-medium">No lessons available yet.</p>
-              <p className="text-xs text-muted-foreground">
-                Add lessons in the backend, then refresh.
+          ) : data?.allCompleted ? (
+            <Card className="gap-4 rounded-2xl p-5 shadow-none">
+              <p className="text-sm text-muted-foreground">
+                You finished every lesson. Practise any lesson again from your path.
               </p>
+              <Button asChild variant="outline">
+                <Link href="/lessons">View your path</Link>
+              </Button>
             </Card>
           ) : data?.recommendedLesson ? (
             <Card className="animate-in gap-4 rounded-2xl py-5 shadow-none duration-200 fade-in-0 slide-in-from-bottom-1">
@@ -59,21 +73,17 @@ export default function HomeClient() {
                 <div>
                   <h3 className="text-base font-medium">{data.recommendedLesson.title}</h3>
                   <p className="text-sm text-muted-foreground">
-                    {data.recommendedLesson.objective}
+                    {data.recommendedLesson.level === "beginner" ||
+                    data.recommendedLesson.level === "elementary"
+                      ? data.recommendedLesson.canDo
+                      : data.recommendedLesson.objective}
                   </p>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Badge variant="secondary">{data.recommendedLesson.category}</Badge>
-                  <Badge variant="outline">
-                    {data.recommendedLesson.level.charAt(0).toUpperCase()}
-                    {data.recommendedLesson.level.slice(1)}
-                  </Badge>
-                  <span className="text-xs text-muted-foreground">
-                    {data.recommendedLesson.estimatedMinutes} min
-                  </span>
-                </div>
+                <p className="text-sm text-muted-foreground">
+                  {data.pathProgress.completed} of {data.pathProgress.total} lessons
+                </p>
                 <Button variant="indigo" asChild className="w-full">
-                  <Link href={`/lessons/${data.recommendedLesson.id}`}>Start lesson</Link>
+                  <Link href={`/lessons/${data.recommendedLesson.id}`}>Continue</Link>
                 </Button>
               </CardContent>
             </Card>

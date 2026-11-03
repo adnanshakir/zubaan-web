@@ -7,10 +7,12 @@ import { useRouter } from "next/navigation"
 import type { AttemptResultRequest, Exercise, LessonDetail } from "@/lib/api/types"
 import { api, describeError } from "@/lib/api/client"
 import { haptic } from "@/lib/haptics"
+import { sfx } from "@/lib/sfx"
 import { createAttemptSync } from "@/lib/attempt-sync"
 import {
   isCorrect,
   buildQueue,
+  normalizeTyped,
   scheduleRetry,
   stageStats,
   streakAfter,
@@ -21,12 +23,15 @@ import { notifyError } from "@/lib/notify"
 import { sentenceById } from "@/lib/lesson-helpers"
 import { useApi } from "@/hooks/use-api"
 import { ErrorCard } from "@/components/error-card"
+import { DictationExercise } from "@/components/exercises/dictation-exercise"
 import { GapExercise } from "@/components/exercises/gap-exercise"
 import { ListenPickExercise } from "@/components/exercises/listen-pick-exercise"
 import { MatchPairsExercise } from "@/components/exercises/match-pairs-exercise"
 import { McqExercise } from "@/components/exercises/mcq-exercise"
 import { OrderWordsExercise } from "@/components/exercises/order-words-exercise"
+import { ReplySpeakExercise } from "@/components/exercises/reply-speak-exercise"
 import { SpeakExercise } from "@/components/exercises/speak-exercise"
+import { TypeGapExercise } from "@/components/exercises/type-gap-exercise"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -85,6 +90,10 @@ function LessonPlayer({ id, lesson }: { id: string; lesson: LessonDetail }) {
   const attemptCompleted = useRef(false)
   const pendingAttempt = useRef<Promise<string> | null>(null)
   const attemptSync = useRef<ReturnType<typeof createAttemptSync> | null>(null)
+
+  useEffect(() => {
+    if (lesson.progress.status === "locked") router.replace(`/lessons/${id}`)
+  }, [id, lesson.progress.status, router])
 
   useEffect(() => {
     let active = true
@@ -174,6 +183,7 @@ function LessonPlayer({ id, lesson }: { id: string; lesson: LessonDetail }) {
         setMilestone(message)
         if (nextStreak === 3) haptic.nudge()
         else haptic.success()
+        sfx.play("streak", nextStreak >= 8 ? 1.2 : nextStreak >= 5 ? 1.1 : 1)
         if (milestoneTimeout.current !== null) {
           window.clearTimeout(milestoneTimeout.current)
         }
@@ -184,7 +194,7 @@ function LessonPlayer({ id, lesson }: { id: string; lesson: LessonDetail }) {
     }
     const result: AttemptResultRequest["result"] = skipFeedback
       ? "skipped"
-      : current?.type === "speak"
+      : current?.type === "speak" || current?.type === "reply_speak"
         ? (verdict ?? (correct ? "said" : "missed"))
         : correct
           ? "correct"
@@ -193,7 +203,16 @@ function LessonPlayer({ id, lesson }: { id: string; lesson: LessonDetail }) {
       exerciseId: item.exercise.id,
       result,
       ...(current?.type === "order_words" && Array.isArray(answer) ? { answer } : {}),
-      ...(current?.type !== "order_words" && current?.type !== "speak" && typeof answer === "string"
+      ...((current?.type === "type_gap" || current?.type === "dictation") &&
+      typeof answer === "string"
+        ? { answer: normalizeTyped(answer) }
+        : {}),
+      ...(current?.type !== "order_words" &&
+      current?.type !== "speak" &&
+      current?.type !== "reply_speak" &&
+      current?.type !== "type_gap" &&
+      current?.type !== "dictation" &&
+      typeof answer === "string"
         ? { answer }
         : {}),
       ...(item.retried ? { retry: true } : {}),
@@ -206,8 +225,13 @@ function LessonPlayer({ id, lesson }: { id: string; lesson: LessonDetail }) {
     setLastCorrect(correct)
     setLastLabel(label)
     setChecked(true)
-    if (correct) haptic.success()
-    else haptic.error()
+    if (correct) {
+      haptic.success()
+      sfx.play("correct")
+    } else {
+      haptic.error()
+      sfx.play("wrong")
+    }
     if (!correct) {
       setPlan((previous) => scheduleRetry(previous, 0, item))
     }
@@ -220,7 +244,11 @@ function LessonPlayer({ id, lesson }: { id: string; lesson: LessonDetail }) {
         ? current.correct
         : current.type === "order_words"
           ? current.answer
-          : undefined
+          : current.type === "type_gap"
+            ? current.accept[0]
+            : current.type === "dictation"
+              ? current.text
+              : undefined
     settle(isCorrect(current, answer as string | string[]), label)
   }
 
@@ -239,6 +267,7 @@ function LessonPlayer({ id, lesson }: { id: string; lesson: LessonDetail }) {
     }
     setPhase("stage-done")
     haptic.success()
+    sfx.play("complete")
   }
 
   function startReview() {
@@ -252,6 +281,7 @@ function LessonPlayer({ id, lesson }: { id: string; lesson: LessonDetail }) {
   function continueStage() {
     if (stageIndex + 1 >= lesson.stages.length) {
       setPhase("ready")
+      sfx.play("complete")
       return
     }
     setStageIndex((index) => index + 1)
@@ -395,6 +425,9 @@ function LessonPlayer({ id, lesson }: { id: string; lesson: LessonDetail }) {
               onSkip={() => {
                 skipRequested.current = true
               }}
+              onEnter={() => {
+                if (canCheck(current, answer)) checkAnswer()
+              }}
             />
           </div>
         ) : null}
@@ -461,6 +494,7 @@ function LessonPlayer({ id, lesson }: { id: string; lesson: LessonDetail }) {
       current &&
       current.type !== "match_pairs" &&
       current.type !== "speak" &&
+      current.type !== "reply_speak" &&
       !checked ? (
         <div className="fixed inset-x-0 bottom-0 border-t border-border/60 bg-background px-5 pt-4 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
           <div className="mx-auto max-w-md">
@@ -506,6 +540,7 @@ function LessonPlayer({ id, lesson }: { id: string; lesson: LessonDetail }) {
                 ) : null}
                 {current.type !== "match_pairs" &&
                 current.type !== "speak" &&
+                current.type !== "reply_speak" &&
                 current.explanation ? (
                   <p className="mt-2 text-sm text-foreground/80">{current.explanation}</p>
                 ) : null}
@@ -529,6 +564,7 @@ function ExerciseView({
   onChange,
   onResult,
   onSkip,
+  onEnter,
 }: {
   exercise: Exercise
   lesson: LessonDetail
@@ -537,6 +573,7 @@ function ExerciseView({
   onChange: (value: string | string[]) => void
   onResult: (correct: boolean, label?: string, verdict?: "said" | "close" | "missed") => void
   onSkip: () => void
+  onEnter?: () => void
 }) {
   switch (exercise.type) {
     case "mcq":
@@ -592,10 +629,40 @@ function ExerciseView({
         />
       ) : null
     }
+    case "type_gap":
+      return (
+        <TypeGapExercise
+          exercise={exercise}
+          value={typeof value === "string" ? value : null}
+          onChange={onChange}
+          checked={checked}
+          disabled={checked}
+          onEnter={onEnter}
+        />
+      )
+    case "dictation":
+      return (
+        <DictationExercise
+          exercise={exercise}
+          value={typeof value === "string" ? value : null}
+          onChange={onChange}
+          checked={checked}
+          disabled={checked}
+        />
+      )
+    case "reply_speak":
+      return <ReplySpeakExercise exercise={exercise} onResult={onResult} onSkip={onSkip} />
   }
 }
 
 function canCheck(exercise: Exercise | undefined, answer: Answer): boolean {
-  if (!exercise || exercise.type === "match_pairs" || exercise.type === "speak") return false
+  if (
+    !exercise ||
+    exercise.type === "match_pairs" ||
+    exercise.type === "speak" ||
+    exercise.type === "reply_speak"
+  ) {
+    return false
+  }
   return Array.isArray(answer) ? answer.length > 0 : answer !== null && answer.length > 0
 }

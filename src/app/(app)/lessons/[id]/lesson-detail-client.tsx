@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { useCallback, useState } from "react"
-import { ChevronLeftIcon } from "lucide-react"
+import { ChevronLeftIcon, LockIcon } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { api, describeError } from "@/lib/api/client"
 import { exerciseCount } from "@/lib/lesson-helpers"
@@ -73,6 +73,17 @@ function LessonContent({
       <header>
         <h1 className="text-2xl font-semibold tracking-tight">{lesson.title}</h1>
         <p className="mt-1 text-sm text-muted-foreground">{lesson.objective}</p>
+        {lesson.progress.status === "locked" ? (
+          <div className="mt-4 flex items-center gap-2 rounded-2xl border border-border bg-muted/40 p-3 text-sm text-muted-foreground">
+            <LockIcon className="size-4 shrink-0" />
+            Finish {lesson.progress.unlockAfter?.title} to unlock this lesson.
+          </div>
+        ) : null}
+        {lesson.progress.status === "completed" ? (
+          <p className="mt-3 text-sm text-muted-foreground">
+            Best score: {lesson.progress.bestScore}
+          </p>
+        ) : null}
         <p className="mt-3 text-sm text-muted-foreground">
           {lesson.sentences.length} sentences · {exerciseCount(lesson)} exercises · about{" "}
           {lesson.estimatedMinutes} min
@@ -114,18 +125,29 @@ function LessonContent({
       </section>
 
       <div className="flex flex-col gap-2">
-        <Button variant="indigo" className="w-full" asChild>
-          <Link href={`/lessons/${id}/play`}>Start lesson</Link>
-        </Button>
         <Button
-          variant="ghost"
-          size="sm"
-          loading={starting}
-          disabled={starting}
-          onClick={() => void skipToConversation()}
+          variant="indigo"
+          className="w-full"
+          asChild={lesson.progress.status !== "locked"}
+          disabled={lesson.progress.status === "locked"}
         >
-          Skip to conversation
+          {lesson.progress.status === "locked" ? (
+            "Start lesson"
+          ) : (
+            <Link href={`/lessons/${id}/play`}>Start lesson</Link>
+          )}
         </Button>
+        {process.env.NEXT_PUBLIC_DEV_SKIP === "true" ? (
+          <Button
+            variant="ghost"
+            size="sm"
+            loading={starting}
+            disabled={starting}
+            onClick={() => void skipToConversation()}
+          >
+            Skip to conversation
+          </Button>
+        ) : null}
       </div>
     </div>
   )

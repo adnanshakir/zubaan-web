@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button"
 
 interface ListenPickExerciseProps {
   exercise: ListenPickExercise
+  native?: string
   value: string | null
   onChange: (value: string) => void
   disabled?: boolean
@@ -18,6 +19,7 @@ interface ListenPickExerciseProps {
 
 export function ListenPickExercise({
   exercise,
+  native,
   value,
   onChange,
   disabled = false,
@@ -37,6 +39,7 @@ export function ListenPickExercise({
     <div className="flex flex-col gap-6">
       <div>
         <h2 className="text-xl font-semibold">{exercise.prompt}</h2>
+        {native ? <p className="mt-2 text-sm text-muted-foreground">{native}</p> : null}
         <div className="mt-5 flex items-center gap-3">
           <Button
             variant="outline"

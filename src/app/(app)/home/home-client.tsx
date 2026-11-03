@@ -39,6 +39,19 @@ export default function HomeClient() {
       </header>
 
       <section className="mt-8">
+        {!loading && !error && data && !data.placementDone ? (
+          <Card className="mb-6 gap-4 rounded-2xl p-5 shadow-none">
+            <div>
+              <h2 className="text-base font-medium">Find your starting level</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                A 3 minute test so we can show the right lessons first.
+              </p>
+            </div>
+            <Button asChild variant="indigo" className="w-full">
+              <Link href="/placement">Take the test</Link>
+            </Button>
+          </Card>
+        ) : null}
         <h2 className="text-lg font-medium">Continue</h2>
         <div className="mt-3">
           {loading ? (

@@ -189,6 +189,15 @@ starts/stops, and error on error notifications.
 `NEXT_PUBLIC_DEV_SKIP=true` enables the lesson overview's Skip to conversation
 action.
 
+## Placement test
+
+The placement test uses a four-tier ladder. It starts at the first tier, moves
+up after two passed answers, and stops after two failed answers; otherwise it
+asks the next unanswered item in that tier. There is no correct or wrong
+feedback during the test. The result screen shows the starting level, a short
+explanation, speaking strengths, and a manual level selector. The test is
+offered after onboarding and from Home until placement is complete.
+
 ## Exercise types
 
 - **type_gap**: sentence with a typed blank, the Hindi text below; accepts any of the `accept` items after normalizing.

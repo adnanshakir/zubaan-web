@@ -39,7 +39,7 @@ export default function OnboardingPage() {
     try {
       await api.onboard({ nativeLanguage: language, goal, level, name: name.trim() || undefined })
       haptic.success()
-      router.replace("/home")
+      router.replace("/placement")
     } catch (error) {
       notifyError(describeError(error))
       setSubmitting(false)

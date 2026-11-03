@@ -67,11 +67,6 @@ export interface AttemptCompleteRequest {
   bestStreak: number // integer, 0–200
 }
 
-export interface SaveProgressRequest {
-  score: number
-  conversationId: string
-}
-
 export interface ConversationTurnRequest {
   text: string // 1–500 chars
 }
@@ -104,13 +99,57 @@ export interface HomeResponse {
   recommendedLesson: LessonListItem | null
   pathProgress: { completed: number; total: number }
   allCompleted: boolean
+  placementDone: boolean
 }
 
-export interface LessonProgress {
-  status: "locked" | "available" | "completed"
-  bestScore: number
-  attempts: number
-  unlockAfter: { id: string; title: string } | null
+export type PlacementItemKind = "mcq" | "listen_pick" | "read_aloud"
+
+export interface PlacementItem {
+  id: string
+  kind: PlacementItemKind
+  prompt: string
+  text: string
+  options: string[]
+  correct: string
+  native?: string
+}
+
+export interface PlacementTier {
+  tier: number
+  items: PlacementItem[]
+}
+
+export interface PlacementInstructions {
+  en: string
+  native: string
+}
+
+export interface PlacementResponse {
+  tiers: PlacementTier[]
+  instructions: Record<PlacementItemKind, PlacementInstructions>
+  free: PlacementInstructions & { maxSeconds: number }
+}
+
+export interface PlacementAnswer {
+  itemId: string
+  passed: boolean
+  skipped?: boolean
+}
+
+export interface PlacementResultRequest {
+  answers: PlacementAnswer[]
+  sample?: string
+}
+
+export interface PlacementResultResponse {
+  level: Level
+  understanding: { passed: number; total: number }
+  speaking: { passed: number; total: number; skipped: number }
+}
+
+export interface PlacementLevelRequest {
+  level: Level
+  source?: "test" | "beginner" | "manual"
 }
 
 export interface LessonListItem {
@@ -126,7 +165,12 @@ export interface LessonListItem {
   unit: string
   order: number
   canDo: string
-  progress: LessonProgress
+  progress: {
+    status: "locked" | "available" | "completed"
+    bestScore: number | null
+    attempts: number
+    unlockAfter: { id: string; title: string } | null
+  }
   isCurrent: boolean
 }
 
@@ -136,6 +180,18 @@ export interface LessonDetail extends LessonListItem {
   sentences: Sentence[]
   stages: Stage[]
   chat: Chat
+}
+
+export interface LessonProgressResponse {
+  lessonId: string
+  bestScore: number
+  attempts: number
+  passed: boolean
+  newlyPassed: boolean
+  passScore: number
+  nextLessonId: string | null
+  completedCount: number
+  total: number
 }
 
 export interface Sentence {
@@ -332,14 +388,6 @@ export interface LessonAttemptResponse {
   }>
 }
 
-export interface SaveProgressResponse {
-  passed: boolean
-  newlyPassed: boolean
-  nextLessonId: string | null
-  passScore: number
-  bestScore: number
-}
-
 export interface Correction {
   corrected: string
   explanation: string
@@ -425,6 +473,9 @@ export interface User {
   placement: {
     selfReported: Level
     measured?: Level
+    source?: "test" | "beginner" | "manual"
+    completedAt?: string
+    sample?: string
   }
   createdAt: string
   updatedAt: string

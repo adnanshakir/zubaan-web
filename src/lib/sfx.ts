@@ -20,8 +20,7 @@ export const sfx = {
     const elements =
       sounds[name] ??
       (sounds[name] = Array.from({ length: 2 }, () => {
-        const fileName = name === "mic-stop" ? "mic-end" : name
-        const audio = new Audio(`/sfx/${fileName}.mp3`)
+        const audio = new Audio(`/sfx/${name}.mp3`)
         audio.volume = name === "tap" || name === "select" ? 0.3 : 0.5
         return audio
       }))

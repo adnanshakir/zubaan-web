@@ -2,14 +2,13 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { AudioLinesIcon, BookOpenIcon, HouseIcon, SpellCheckIcon } from "lucide-react"
+import { AudioLinesIcon, BookOpenIcon, HouseIcon } from "lucide-react"
 import { haptic } from "@/lib/haptics"
 import { cn } from "@/lib/utils"
 
 const ITEMS = [
   { href: "/home", label: "Home", icon: HouseIcon },
   { href: "/lessons", label: "Lessons", icon: BookOpenIcon },
-  { href: "/mistakes", label: "Mistakes", icon: SpellCheckIcon },
   { href: "/voice-lab", label: "Voice lab", icon: AudioLinesIcon },
 ] as const
 
@@ -22,11 +21,11 @@ export function NavIsland() {
       aria-label="Main"
       className="fixed bottom-[max(1.25rem,env(safe-area-inset-bottom))] left-1/2 z-40 w-[min(22rem,calc(100%-2.5rem))] -translate-x-1/2 rounded-full border border-border bg-card/80 p-1 backdrop-blur-md"
     >
-      <div className="relative grid grid-cols-4">
+      <div className="relative grid grid-cols-3">
         <span
           aria-hidden
           className={cn(
-            "absolute inset-y-0 left-0 w-1/4 rounded-full bg-accent transition-[transform,opacity] duration-200 ease-[var(--ease-out-soft)] motion-reduce:transition-none",
+            "absolute inset-y-0 left-0 w-1/3 rounded-full bg-accent transition-[transform,opacity] duration-200 ease-[var(--ease-out-soft)] motion-reduce:transition-none",
             activeIndex === -1 && "opacity-0",
           )}
           style={{ transform: `translateX(${Math.max(activeIndex, 0) * 100}%)` }}

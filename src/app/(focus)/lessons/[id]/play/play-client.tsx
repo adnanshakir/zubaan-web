@@ -416,6 +416,7 @@ function LessonPlayer({ id, lesson }: { id: string; lesson: LessonDetail }) {
           >
             {item?.retried ? <p className="mb-3 text-xs text-muted-foreground">Try again</p> : null}
             <ExerciseView
+              key={`${current.id}:0:${item.retried}`}
               exercise={current}
               lesson={lesson}
               value={answer}

@@ -50,7 +50,6 @@ The root layout supplies fonts, dark mode, metadata, and the toast host
 | `/lessons/[id]/play` | focus | `lesson`, `startAttempt`, queued `recordResult`, `completeAttempt`, `startConversation` |
 | `/conversation/[id]` | focus | `conversation`, `lesson`, `takeTurn`, `stt`, `endConversation` |
 | `/conversation/[id]/summary` | focus | `conversation`, `lesson`, optional `attempt`, `saveProgress`; `startConversation` for chat again |
-| `/mistakes` | app | `mistakeSummary`, paginated `mistakes`, and `tts` for corrected phrases |
 | `/voice-lab` | app | `tts` and `stt` |
 
 The route pages are thin parameter/data-loading wrappers; the behavior lives

@@ -99,6 +99,57 @@ export interface HomeResponse {
   recommendedLesson: LessonListItem | null
   pathProgress: { completed: number; total: number }
   allCompleted: boolean
+  placementDone: boolean
+}
+
+export type PlacementItemKind = "mcq" | "listen_pick" | "read_aloud"
+
+export interface PlacementItem {
+  id: string
+  kind: PlacementItemKind
+  prompt: string
+  text: string
+  options: string[]
+  correct: string
+  native?: string
+}
+
+export interface PlacementTier {
+  tier: number
+  items: PlacementItem[]
+}
+
+export interface PlacementInstructions {
+  en: string
+  native: string
+}
+
+export interface PlacementResponse {
+  tiers: PlacementTier[]
+  instructions: Record<PlacementItemKind, PlacementInstructions>
+  free: PlacementInstructions & { maxSeconds: number }
+}
+
+export interface PlacementAnswer {
+  itemId: string
+  passed: boolean
+  skipped?: boolean
+}
+
+export interface PlacementResultRequest {
+  answers: PlacementAnswer[]
+  sample?: string
+}
+
+export interface PlacementResultResponse {
+  level: Level
+  understanding: { passed: number; total: number }
+  speaking: { passed: number; total: number; skipped: number }
+}
+
+export interface PlacementLevelRequest {
+  level: Level
+  source?: "test" | "beginner" | "manual"
 }
 
 export interface LessonListItem {

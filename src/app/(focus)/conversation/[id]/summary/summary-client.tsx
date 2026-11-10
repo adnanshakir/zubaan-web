@@ -236,9 +236,6 @@ export default function SummaryClient({ id }: { id: string }) {
                 </div>
               ))}
             </div>
-            <Button asChild variant="outline" size="sm" className="mt-4">
-              <Link href="/mistakes">Review all mistakes</Link>
-            </Button>
           </>
         )}
       </section>

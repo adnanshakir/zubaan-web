@@ -18,9 +18,6 @@ import type {
   LessonListItem,
   LessonAttemptResponse,
   Level,
-  MistakesListResponse,
-  MistakesSummaryResponse,
-  MistakeType,
   OnboardingRequest,
   OnboardingResponse,
   PlacementLevelRequest,
@@ -210,11 +207,6 @@ export const api = {
     if (options.mode) form.append("mode", options.mode)
     return request<SttResponse>("/api/speech/stt", { method: "POST", body: form })
   },
-
-  mistakes: (query: { type?: MistakeType; limit?: number; before?: string } = {}) =>
-    request<MistakesListResponse>(withQuery("/api/mistakes", query)),
-
-  mistakeSummary: () => request<MistakesSummaryResponse>("/api/mistakes/summary"),
 }
 
 /** Turns the backend's relative audioUrl into a playable absolute URL. */

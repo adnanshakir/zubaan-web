@@ -394,27 +394,6 @@ export interface Correction {
   type: MistakeType
 }
 
-export interface MistakeItem {
-  id: string
-  original: string
-  corrected: string
-  explanation: string
-  type: MistakeType
-  conversationId: string
-  lessonId: string
-  createdAt: string
-}
-
-export interface MistakesListResponse {
-  items: MistakeItem[]
-  nextBefore: string | null
-}
-
-export interface MistakesSummaryResponse {
-  total: number
-  byType: Record<MistakeType, number>
-}
-
 export interface FeedbackCorrection {
   original: string
   corrected: string

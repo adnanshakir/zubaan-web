@@ -73,8 +73,7 @@ Mobile-first, because the real product is a phone app.
 A floating island pill, fixed bottom center:
 `fixed bottom-5 left-1/2 -translate-x-1/2 rounded-full border border-border bg-card/80 p-1 backdrop-blur-md`.
 
-- 3 to 4 items with an icon and a short label: Home, Lessons, Mistakes,
-  Voice lab.
+- 3 to 4 items with an icon and a short label: Home, Lessons, Voice lab.
 - The active item has a filled `bg-accent` pill that slides to the new item
   (CSS transform transition, 200ms).
 - Hidden on the conversation screen, which has its own header with a back
@@ -165,7 +164,7 @@ what to do next.
 ## Screens (prototype scope)
 
 Onboarding, Home, Lessons list, Lesson detail (learn, repeat, roleplay),
-Conversation, Mistakes, Voice lab. Data for each screen: see
+Conversation, Voice lab. Data for each screen: see
 `docs/api/INDEX.md`.
 
 ## Lesson path
